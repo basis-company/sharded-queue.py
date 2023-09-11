@@ -1,0 +1,18 @@
+[project]
+name = "sharded-queue"
+version = "0.0.1"
+authors = [
+  { name="Dmitry Krokhin", email="nekufa@gmail.com" },
+]
+description = "Sharded queue implementation"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/basis-company/sharded-queue.py"
+"Bug Tracker" = "https://github.com/basis-company/sharded-queue.py/issues"
