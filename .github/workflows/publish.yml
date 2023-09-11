@@ -1,4 +1,6 @@
 # .github/workflows/publish.yml
+name: Publish Python 🐍 distributions 📦 to PyPI and TestPyPI
+on: push
 jobs:
   pypi-publish:
     name: Upload release to PyPI
