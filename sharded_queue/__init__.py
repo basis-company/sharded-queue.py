@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from functools import cache
 from importlib import import_module
 from json import dumps, loads
-from typing import (Any, Generic, List, NamedTuple, Optional, Protocol,
-                    Sequence, TypeVar, get_type_hints)
+from typing import (Any, AsyncGenerator, Generic, List, NamedTuple, Optional,
+                    Protocol, Self, Sequence, TypeVar, get_type_hints)
 
 from pydantic import BaseSettings, Field
 
@@ -64,7 +64,7 @@ class Handler(Generic[T]):
     orders: Optional[list[str]] = None
 
     @classmethod
-    async def create(cls):
+    async def create(cls) -> Self:
         return cls()
 
     @classmethod
@@ -81,13 +81,13 @@ class Handler(Generic[T]):
             for request in requests
         ]
 
-    async def start(self):
+    async def start(self) -> None:
         pass
 
-    async def handle(self, *requests: T):
+    async def handle(self, *requests: T) -> None:
         raise NotImplementedError()
 
-    async def stop(self):
+    async def stop(self) -> None:
         pass
 
 
@@ -105,7 +105,7 @@ class Tube(NamedTuple):
         ])
 
     @asynccontextmanager
-    async def context(self):
+    async def context(self) -> AsyncGenerator:
         instance = await self.handler.create()
         await instance.start()
         try:
@@ -156,7 +156,7 @@ class Queue(Generic[T]):
     serializer: Serializer
     storage: Storage
 
-    async def register(self, handler: type[Handler], *requests: T):
+    async def register(self, handler: type[Handler], *requests: T) -> None:
         tubes: list[RequestTube] = [
             RequestTube(request, Tube(handler, route))
             for (request, route)
@@ -202,7 +202,7 @@ class Coordinator(Protocol):
     async def bind(self, tube: str) -> bool:
         raise NotImplementedError
 
-    async def unbind(self, tube: str):
+    async def unbind(self, tube: str) -> None:
         raise NotImplementedError
 
 
@@ -217,7 +217,7 @@ class Worker:
 
         return min(limit, settings.worker_batch_size)
 
-    async def loop(self, limit: Optional[int] = None):
+    async def loop(self, limit: Optional[int] = None) -> None:
         processed = 0
         while True and limit is None or limit > processed:
             tube = await self.coordinator.acquire_tube(self.queue)
@@ -279,7 +279,7 @@ class RuntimeCoordinator(Coordinator):
         self.binds[pipe] = True
         return True
 
-    async def unbind(self, pipe: str):
+    async def unbind(self, pipe: str) -> None:
         del self.binds[pipe]
 
 

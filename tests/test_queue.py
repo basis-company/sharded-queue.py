@@ -28,21 +28,21 @@ class SyncHandler(Handler):
             for request in requests
         ]
 
-    async def start(self):
+    async def start(self) -> None:
         context['started'] = datetime.now().timestamp()
 
-    async def stop(self):
+    async def stop(self) -> None:
         context['stopped'] = datetime.now().timestamp()
 
-    async def handle(self, *requests: Request):
+    async def handle(self, *requests: Request) -> None:
         synced.extend(requests)
 
 
 @mark.asyncio
-async def test_queue():
+async def test_queue() -> None:
     queue = Queue(JsonTupleSerializer(), RuntimeStorage())
 
-    def get_pipe(thread: str):
+    def get_pipe(thread: str) -> str:
         return Tube(SyncHandler, Route(thread=thread)).pipe
 
     await queue.register(
@@ -94,7 +94,7 @@ async def test_queue():
 
 
 @mark.asyncio
-async def test_storage():
+async def test_storage() -> None:
     storage = RuntimeStorage()
     await storage.append('tester', 'q')
     await storage.append('tester', 'w')
