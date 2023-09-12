@@ -11,7 +11,7 @@ async def test_runtime_storage() -> None:
 
 @mark.asyncio
 async def test_redis_storage() -> None:
-    redis = Redis(decode_responses=True)
+    redis: Redis = Redis(decode_responses=True)
     await redis.flushall()
     await runner(RedisStorage(redis))
     await redis.close()
