@@ -7,6 +7,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"]
+        redis-version: ["6", '7']
 
     steps:
       - uses: actions/checkout@v3
@@ -22,4 +23,5 @@ jobs:
 
       - run: mypy .
 
+      - run: docker run -d -p 6379:6379 redis:${{ matrix.redis-version}}
       - run: pytest --cov=sharded_queue .

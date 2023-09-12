@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from functools import cache
 from importlib import import_module
 from json import dumps, loads
-from typing import (Any, AsyncGenerator, Generic, List, NamedTuple, Optional,
+from typing import (AsyncGenerator, Generic, List, NamedTuple, Optional,
                     Protocol, Self, Sequence, TypeVar, get_type_hints)
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from redis.asyncio import Redis
 
 T = TypeVar('T')
 
@@ -30,6 +31,11 @@ class ShardedQueueSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(env_prefix='queue_')
+
+    tube_prefix: str = Field(
+        default="tube_",
+        title="Queue prefix"
+    )
 
     worker_batch_size: int = Field(
         default=128,
@@ -273,6 +279,29 @@ class RuntimeCoordinator(Coordinator):
 
     async def unbind(self, pipe: str) -> None:
         del self.binds[pipe]
+
+
+class RedisStorage(Storage):
+    def __init__(self, redis: Redis) -> None:
+        self.redis = redis
+
+    async def append(self, tube: str, *msgs: str) -> int:
+        return await self.redis.rpush(settings.tube_prefix + tube, *msgs)
+
+    async def length(self, tube: str) -> int:
+        return await self.redis.llen(settings.tube_prefix + tube)
+
+    async def pop(self, tube: str, max: int) -> list[str]:
+        return await self.redis.lpop(settings.tube_prefix + tube, max) or []
+
+    async def pipes(self) -> list[str]:
+        return [
+            key[len(settings.tube_prefix):]
+            for key in await self.redis.keys(settings.tube_prefix + '*')
+        ]
+
+    async def range(self, tube: str, max: int) -> list[str]:
+        return await self.redis.lrange(settings.tube_prefix + tube, 0, max-1) or []
 
 
 class RuntimeStorage(Storage):

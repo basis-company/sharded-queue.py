@@ -1,11 +1,23 @@
 from pytest import mark
+from redis.asyncio import Redis
 
-from sharded_queue import RuntimeStorage
+from sharded_queue import RedisStorage, RuntimeStorage
 
 
 @mark.asyncio
-async def test_storage() -> None:
-    storage = RuntimeStorage()
+async def test_runtime_storage() -> None:
+    await runner(RuntimeStorage())
+
+
+@mark.asyncio
+async def test_redis_storage() -> None:
+    redis = Redis(decode_responses=True)
+    await redis.flushall()
+    await runner(RedisStorage(redis))
+    await redis.close()
+
+
+async def runner(storage) -> None:
     await storage.append('tester', 'q')
     await storage.append('tester', 'w')
     await storage.append('tester', 'e')
