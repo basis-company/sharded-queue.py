@@ -59,7 +59,7 @@ async def main():
     queue = Queue()
 
     # let's register notification for first 9 users
-    await queue.register(NotifyHandler, *[NotifyRequest(n) for n in range(9)])
+    await queue.register(NotifyHandler, *[NotifyRequest(n) for n in range(1, 9)])
 
     # now all requests are waiting for workers on 3 notify handler tubes
     # first tube contains notify request for users 1, 4, 7
