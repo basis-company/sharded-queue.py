@@ -2,8 +2,19 @@
 
 ## Introduction
 
-A sharded job queue is a distributed queue that enables processing of large-scale jobs across a network of worker nodes. Each queue shard is handled by a separate node, which allows for parallel processing of jobs and efficient resource utilization. This can be achieved with handlers that contains logic for routing and performing a job. Any handler split requests to any number of threads. In advance, route can define processing priority value.
+Imagine your job queue operates at very high rps and needs distribution over multiple workers. But you need to keep context-sensitive requests in same thread and manage thread request processing priority. In other words, sharded queue is a queue with sub-queues inside. Tasks are executed in FIFO order due priority and you define how to route them correctly per handler basis.
 
+There are some roles that you need to understand:
+- `request` a simple message that should be delivered to a handler
+- `handler` request handler that performs the job
+- `route` an object that defines thread and priority
+
+Runtime consist of several components:
+- `queue` helps you to register requests to a handler
+- `storage` a database that holds all queue data
+- `serializer` converts your request to str and restore to objects
+- `worker` performs requests using handler
+- `coordinator` is mechanism that helps worker findout the queue
 
 ## Installation
 Install using pip
@@ -51,7 +62,7 @@ from notifications import NotifyHandler, NotifyRequest
 
 
 async def main():
-    queue = Queue()
+    queue = Queue(RuntimeStorage())
 
     # let's register notification for first 9 users
     await queue.register(NotifyHandler, *[NotifyRequest(n) for n in range(1, 9)])
@@ -147,7 +158,7 @@ from sharded_queue import settings
 settings.coordinator_delay = 5
 settings.worker_batch_size = 64
 
-worker = Worker(Queue())
+worker = Worker(Queue(RuntimeStorage()))
 await worker.loop()
 
 ```
