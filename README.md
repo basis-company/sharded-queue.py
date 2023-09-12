@@ -26,7 +26,7 @@ Let's start with a simple notification task that is shared by 3 threads and ther
 ```py
 from sharded_queue import Handler, Queue, Route
 
-class NotifyRequest:
+class NotifyRequest(NamedTuple):
     '''
     In this example we have simple notify request containing user identifier
     In addition, the value is used to shard requests over worker threads
