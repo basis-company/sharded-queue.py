@@ -2,11 +2,7 @@
 
 ## Introduction
 
-A sharded job queue is a distributed queue that enables processing of large-scale jobs across a network of worker nodes.\
-Each queue shard is handled by a separate node, which allows for parallel processing of jobs and efficient resource utilization.
-
-This can be achieved with handlers that contains logic for routing and performing a job. Any handler split requests to any number of threads.\
-In advance, route can define processing order value.
+A sharded job queue is a distributed queue that enables processing of large-scale jobs across a network of worker nodes. Each queue shard is handled by a separate node, which allows for parallel processing of jobs and efficient resource utilization. This can be achieved with handlers that contains logic for routing and performing a job. Any handler split requests to any number of threads. In advance, route can define processing order value.
 
 
 ## Installation
