@@ -8,7 +8,7 @@ from typing import (Any, AsyncGenerator, Generic, List, NamedTuple, Optional,
                     Protocol, Self, Sequence, TypeVar, get_type_hints)
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 T = TypeVar('T')
 
@@ -29,6 +29,8 @@ class ShardedQueueSettings(BaseSettings):
         title='Default queue thread'
     )
 
+    model_config = SettingsConfigDict(env_prefix='queue_')
+
     worker_batch_size: int = Field(
         default=128,
         title='Worker batch processing size'
@@ -43,9 +45,6 @@ class ShardedQueueSettings(BaseSettings):
         default=0.1,
         title="Worker pause in seconds on empty queue",
     )
-
-    class Config:
-        env_prefix = 'queue_'
 
 
 settings = ShardedQueueSettings()
