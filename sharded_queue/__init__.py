@@ -20,6 +20,16 @@ class ShardedQueueSettings(BaseSettings):
         title="Coordinator delay in seconds on empty queues"
     )
 
+    coordinator_prefix: str = Field(
+        default="lock_",
+        title="Coordinator lock prefix"
+    )
+
+    coordinator_timeout: int = Field(
+        default=24*60*60,
+        title="Coordinator lock ttl"
+    )
+
     default_priority: int = Field(
         default='0',
         title='Default queue priority'
@@ -294,29 +304,6 @@ class RuntimeCoordinator(Coordinator):
         del self.binds[pipe]
 
 
-class RedisStorage(Storage):
-    def __init__(self, redis: Redis) -> None:
-        self.redis = redis
-
-    async def append(self, tube: str, *msgs: str) -> int:
-        return await self.redis.rpush(settings.tube_prefix + tube, *msgs)
-
-    async def length(self, tube: str) -> int:
-        return await self.redis.llen(settings.tube_prefix + tube)
-
-    async def pop(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lpop(settings.tube_prefix + tube, max) or []
-
-    async def pipes(self) -> list[str]:
-        return [
-            key[len(settings.tube_prefix):]
-            for key in await self.redis.keys(settings.tube_prefix + '*')
-        ]
-
-    async def range(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lrange(settings.tube_prefix + tube, 0, max-1) or []
-
-
 class RuntimeStorage(Storage):
     data: dict[str, List[str]]
 
@@ -345,5 +332,44 @@ class RuntimeStorage(Storage):
 
     async def range(self, tube: str, max: int) -> list[str]:
         return self.data[tube][0:max] if tube in self.data else []
+
+
+class RedisCoordinator(Coordinator):
+    def __init__(self, redis: Redis) -> None:
+        self.redis = redis
+
+    async def bind(self, tube: str) -> bool:
+        return None is not await self.redis.set(
+            name=settings.coordinator_prefix + tube,
+            ex=settings.coordinator_timeout,
+            nx=True,
+            value=1,
+        )
+
+    async def unbind(self, tube: str) -> None:
+        await self.redis.delete(settings.coordinator_prefix + tube)
+
+
+class RedisStorage(Storage):
+    def __init__(self, redis: Redis) -> None:
+        self.redis = redis
+
+    async def append(self, tube: str, *msgs: str) -> int:
+        return await self.redis.rpush(settings.tube_prefix + tube, *msgs)
+
+    async def length(self, tube: str) -> int:
+        return await self.redis.llen(settings.tube_prefix + tube)
+
+    async def pop(self, tube: str, max: int) -> list[str]:
+        return await self.redis.lpop(settings.tube_prefix + tube, max) or []
+
+    async def pipes(self) -> list[str]:
+        return [
+            key[len(settings.tube_prefix):]
+            for key in await self.redis.keys(settings.tube_prefix + '*')
+        ]
+
+    async def range(self, tube: str, max: int) -> list[str]:
+        return await self.redis.lrange(settings.tube_prefix + tube, 0, max-1) or []
 
 

@@ -90,6 +90,12 @@ async def example():
     '''
 ```
 
+## Drivers
+There are several implementations of components:
+- `RedisCoordinator` persist queue binds in redis using setnx api
+- `RedisStorage` persist msgs using lists and lrange/lpop/rpush api
+- `RuntimeCoordinator` persist queue binds in memory and can be used in a simple runtime distribution
+- `RuntimeStorage` persist msgs in dict and can be used in a simple runtime distribution
 ## Handler lifecycle
 
 As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler using `start` and `stop` methods
@@ -143,6 +149,10 @@ class ParseEventHandler(Handler):
 You can configure sharded queue using env
 - `QUEUE_COORDINATOR_DELAY = 1`\
 Coordinator delay in seconds on empty queues
+- `QUEUE_COORDINATOR_PREFIX = 'lock_'`\
+Coordinator lock prefix
+- `QUEUE_COORDINATOR_TIMEOUT = 24 * 60 * 60`\
+Coordinator lock ttl
 - `QUEUE_DEFAULT_PRIORITY = 0`\
 Default queue priority
 - `QUEUE_DEFAULT_THREAD = 0`\
