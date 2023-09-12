@@ -20,12 +20,12 @@ class ShardedQueueSettings(BaseSettings):
         title="Coordinator delay in seconds on empty queues"
     )
 
-    default_order: str = Field(
+    default_priority: int = Field(
         default='0',
-        title='Default queue order'
+        title='Default queue priority'
     )
 
-    default_thread: str = Field(
+    default_thread: int = Field(
         default='0',
         title='Default queue thread'
     )
@@ -57,12 +57,12 @@ settings = ShardedQueueSettings()
 
 
 class Route(NamedTuple):
-    thread: str = settings.default_thread
-    order: str = settings.default_order
+    thread: int = settings.default_thread
+    priority: int = settings.default_priority
 
 
 class Handler(Generic[T]):
-    orders: Optional[list[str]] = None
+    priorities: Optional[list[int]] = None
 
     @classmethod
     async def create(cls) -> Self:
@@ -75,8 +75,8 @@ class Handler(Generic[T]):
     @classmethod
     async def route(cls, *requests: T) -> list[Route]:
         return [
-            Route(settings.default_thread, settings.default_order)
-            for request in requests
+            Route(settings.default_thread, settings.default_priority)
+            for _ in requests
         ]
 
     async def start(self) -> None:
@@ -99,7 +99,7 @@ class Tube(NamedTuple):
             self.handler.__module__,
             self.handler.__name__,
             str(self.route.thread),
-            str(self.route.order),
+            str(self.route.priority),
         ])
 
     @asynccontextmanager
@@ -114,9 +114,9 @@ class Tube(NamedTuple):
 
 @cache
 def get_tube(tube: str) -> Tube:
-    [*module, name, thread, order] = tube.split('#')
+    [*module, name, thread, priority] = tube.split('#')
     handler = getattr(import_module("_".join(module)), name)
-    return Tube(handler, Route(thread, order))
+    return Tube(handler, Route(int(thread), int(priority)))
 
 
 class RequestTube(NamedTuple, Generic[T]):
@@ -177,15 +177,15 @@ class Coordinator(Protocol):
                 if not await queue.storage.length(pipe):
                     continue
                 tube = get_tube(pipe)
-                if tube.handler.orders:
-                    if tube.route.order != tube.handler.orders[0]:
+                if tube.handler.priorities:
+                    if tube.route.priority != tube.handler.priorities[0]:
                         if not all_pipes:
                             continue
                         tube = Tube(
                             handler=tube.handler,
                             route=Route(
                                 thread=tube.route.thread,
-                                order=tube.handler.orders[0]
+                                priority=tube.handler.priorities[0]
                             )
                         )
                 if not await self.bind(tube.pipe):
@@ -230,10 +230,10 @@ class Worker:
         empty_counter = 0
         processed_counter = 0
 
-        if tube.handler.orders:
+        if tube.handler.priorities:
             pipes = [
-                Tube(tube.handler, Route(tube.route.thread, order)).pipe
-                for order in tube.handler.orders
+                Tube(tube.handler, Route(tube.route.thread, priority)).pipe
+                for priority in tube.handler.priorities
             ]
 
         async with tube.context() as instance:

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-A sharded job queue is a distributed queue that enables processing of large-scale jobs across a network of worker nodes. Each queue shard is handled by a separate node, which allows for parallel processing of jobs and efficient resource utilization. This can be achieved with handlers that contains logic for routing and performing a job. Any handler split requests to any number of threads. In advance, route can define processing order value.
+A sharded job queue is a distributed queue that enables processing of large-scale jobs across a network of worker nodes. Each queue shard is handled by a separate node, which allows for parallel processing of jobs and efficient resource utilization. This can be achieved with handlers that contains logic for routing and performing a job. Any handler split requests to any number of threads. In advance, route can define processing priority value.
 
 
 ## Installation
@@ -80,7 +80,7 @@ async def main():
 
 `route` method returns an array of routes, each route is defind using:
 - `thread` - requests pipe that uses strict order prcessing
-- `order` - define priority for you requests inside a thread
+- `priority` - define priority for you requests inside a thread
 
 ## Handlers
 
@@ -107,7 +107,7 @@ class ParseEventHandler(Handler):
         override default single thread tube
         '''
         return [
-            Route(settings.default_thread, settings.default_order)
+            Route(settings.default_thread, settings.default_priority)
             for request in requests
         ]
 
@@ -134,7 +134,7 @@ class ParseEventHandler(Handler):
 ## Queue configuration
 You can configure sharded queue using env.
 - `QUEUE_COORDINATOR_DELAY=1` Coordinator delay in seconds on empty queues
-- `QUEUE_DEFAULT_ORDER='0'` Default queue order
+- `QUEUE_DEFAULT_priority='0'` Default queue priority
 - `QUEUE_DEFAULT_THREAD='0'` Default queue thread
 - `QUEUE_TUBE_PREFIX='tube_'` Default queue prefix
 - `QUEUE_WORKER_BATCH_SIZE=128` Worker batch processing size

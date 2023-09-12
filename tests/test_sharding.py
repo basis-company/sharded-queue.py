@@ -24,7 +24,7 @@ class SyncHandler(Handler):
     @classmethod
     async def route(cls, *requests: Request) -> list[Route]:
         return [
-            Route(thread=str(request.bucket % 2)) for request in requests
+            Route(thread=request.bucket % 2) for request in requests
         ]
 
     async def start(self) -> None:
@@ -43,7 +43,7 @@ async def test_queue() -> None:
     queue: Queue = Queue(JsonTupleSerializer(), storage)
 
     def get_pipe(thread: int) -> str:
-        return Tube(SyncHandler, Route(thread=str(thread))).pipe
+        return Tube(SyncHandler, Route(thread=thread)).pipe
 
     await queue.register(
         SyncHandler,

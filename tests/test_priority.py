@@ -14,30 +14,24 @@ processed: list[TimesheetSign] = []
 
 
 class TimesheetSignHandler(Handler):
-    orders = ['q', 'w', 'e']
+    priorities: list[int] = [3, 2, 1]
 
     @classmethod
     async def route(cls, *requests: TimesheetSign) -> list[Route]:
-        mapping: dict[int, str] = {
-            1: 'e',
-            2: 'w',
-            3: 'q',
-        }
-
         return [
-            Route(order=mapping[r.timesheet]) for r in requests
+            Route(priority=r.timesheet) for r in requests
         ]
 
     async def handle(self, *requests: TimesheetSign) -> None:
         processed.extend(requests)
 
 
-def get_pipe(order: str) -> str:
-    return Tube(TimesheetSignHandler, Route('0', order)).pipe
+def get_pipe(priority: int) -> str:
+    return Tube(TimesheetSignHandler, Route(0, priority)).pipe
 
 
 @mark.asyncio
-async def test_orders() -> None:
+async def test_piorities() -> None:
     storage = RuntimeStorage()
     queue: Queue = Queue(JsonTupleSerializer(), storage)
     await queue.register(TimesheetSignHandler, *[
@@ -48,22 +42,20 @@ async def test_orders() -> None:
     await worker.loop(1)
     assert len(processed) == 1
 
-    assert await storage.length(get_pipe('q')) == 0
-    assert await storage.length(get_pipe('w')) == 1
-    assert await storage.length(get_pipe('e')) == 1
+    assert await storage.length(get_pipe(1)) == 1
+    assert await storage.length(get_pipe(2)) == 1
+    assert await storage.length(get_pipe(3)) == 0
 
     await worker.loop(1)
     assert len(processed) == 2
 
-    assert await storage.length(get_pipe('q')) == 0
-    assert await storage.length(get_pipe('w')) == 0
-    assert await storage.length(get_pipe('e')) == 1
+    assert await storage.length(get_pipe(1)) == 1
+    assert await storage.length(get_pipe(2)) == 0
+    assert await storage.length(get_pipe(3)) == 0
 
     await worker.loop(1)
     assert len(processed) == 3
 
-    assert await storage.length(get_pipe('q')) == 0
-    assert await storage.length(get_pipe('w')) == 0
-    assert await storage.length(get_pipe('e')) == 0
-
-
+    assert await storage.length(get_pipe(1)) == 0
+    assert await storage.length(get_pipe(2)) == 0
+    assert await storage.length(get_pipe(3)) == 0
