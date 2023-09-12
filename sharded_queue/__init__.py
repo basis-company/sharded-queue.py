@@ -256,7 +256,7 @@ class Worker:
                         break
                     await sleep(settings.worker_empty_pause)
 
-        await self.coordinator.unbind(pipe)
+        await self.coordinator.unbind(tube.pipe)
         return processed_counter
 
 
