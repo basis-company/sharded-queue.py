@@ -12,7 +12,7 @@ class Request(NamedTuple):
     bucket: int
 
 
-context = {
+context: dict[str, float] = {
     'started': 0,
     'stopped': 0
 }
@@ -40,10 +40,10 @@ class SyncHandler(Handler):
 
 @mark.asyncio
 async def test_queue() -> None:
-    queue = Queue(JsonTupleSerializer(), RuntimeStorage())
+    queue: Queue = Queue(JsonTupleSerializer(), RuntimeStorage())
 
-    def get_pipe(thread: str) -> str:
-        return Tube(SyncHandler, Route(thread=thread)).pipe
+    def get_pipe(thread: int) -> str:
+        return Tube(SyncHandler, Route(thread=str(thread))).pipe
 
     await queue.register(
         SyncHandler,
