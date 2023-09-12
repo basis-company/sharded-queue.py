@@ -1,6 +1,8 @@
 # .github/workflows/publish.yml
-name: Publish package
-on: push
+name: Publish
+
+on: [push]
+
 jobs:
   pypi-publish:
     name: Upload release to PyPI
