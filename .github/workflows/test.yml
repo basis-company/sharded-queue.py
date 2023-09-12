@@ -24,7 +24,7 @@ jobs:
           pip install pytest mypy
 
       - name: mypy
-        run: mypy .
+        run: mypy --install-types  --non-interactive .
 
       - name: pytest
         run: pytest
