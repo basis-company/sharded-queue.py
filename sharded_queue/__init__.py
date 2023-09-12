@@ -7,7 +7,8 @@ from json import dumps, loads
 from typing import (Any, AsyncGenerator, Generic, List, NamedTuple, Optional,
                     Protocol, Self, Sequence, TypeVar, get_type_hints)
 
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 T = TypeVar('T')
 
