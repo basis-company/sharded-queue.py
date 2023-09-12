@@ -33,7 +33,7 @@ def get_pipe(priority: int) -> str:
 @mark.asyncio
 async def test_piorities() -> None:
     storage = RuntimeStorage()
-    queue: Queue = Queue(JsonTupleSerializer(), storage)
+    queue: Queue = Queue(storage)
     await queue.register(TimesheetSignHandler, *[
         TimesheetSign(n) for n in range(1, 4)
     ])

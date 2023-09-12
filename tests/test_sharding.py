@@ -40,7 +40,7 @@ class SyncHandler(Handler):
 @mark.asyncio
 async def test_queue() -> None:
     storage = RuntimeStorage()
-    queue: Queue = Queue(JsonTupleSerializer(), storage)
+    queue: Queue = Queue(storage)
 
     def get_pipe(thread: int) -> str:
         return Tube(SyncHandler, Route(thread=thread)).pipe

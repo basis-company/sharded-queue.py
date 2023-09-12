@@ -132,6 +132,19 @@ class Serializer(Protocol[T]):
         raise NotImplementedError
 
 
+class JsonTupleSerializer(Serializer):
+    def serialize(self, request: T) -> str:
+        if isinstance(request, Sequence):
+            values = [k for k in request]
+        else:
+            values = list(request.__dict__)
+
+        return dumps(values)
+
+    def unserialize(self, cls: type[T], source: str) -> T:
+        return cls(*loads(source))
+
+
 class Storage(Protocol):
     async def append(self, tube: str, *msgs: str) -> int:
         raise NotImplementedError
@@ -151,8 +164,8 @@ class Storage(Protocol):
 
 @dataclass
 class Queue(Generic[T]):
-    serializer: Serializer
     storage: Storage
+    serializer: Serializer = JsonTupleSerializer()
 
     async def register(self, handler: type[Handler], *requests: T) -> None:
         routes = await handler.route(*requests)
@@ -334,14 +347,3 @@ class RuntimeStorage(Storage):
         return self.data[tube][0:max] if tube in self.data else []
 
 
-class JsonTupleSerializer(Serializer):
-    def serialize(self, request: T) -> str:
-        if isinstance(request, Sequence):
-            values = [k for k in request]
-        else:
-            values = list(request.__dict__)
-
-        return dumps(values)
-
-    def unserialize(self, cls: type[T], source: str) -> T:
-        return cls(*loads(source))
