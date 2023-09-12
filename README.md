@@ -56,7 +56,7 @@ class NotifyHandler(Handler):
 ## Usage example
 
 When a handler is described you can use queue and worker api to manage and process tasks. Let's describe runtime components:
-- `coordinator` is a mechanism that helps worker findout the queue
+- `coordinator` helps worker findout the queue
 - `queue` is used to register requests
 - `storage` a database containing queue data
 - `worker` performs requests using handler
