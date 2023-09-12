@@ -14,9 +14,9 @@ There are some roles that you need to understand:
 Runtime consist of several components:
 - `queue` helps you to register requests to a handler
 - `storage` a database that holds all queue data
-- `serializer` converts your request to str and restore to objects
+- `serializer` converts your request to string and restore them back
 - `worker` performs requests using handler
-- `coordinator` is mechanism that helps worker findout the queue
+- `coordinator` is a mechanism that helps worker findout the queue
 
 ## Installation
 Install using pip
@@ -60,44 +60,44 @@ class NotifyHandler(Handler):
 
 When a handler is described you can use queue and worker api to manage and process tasks.
 ```py
+from asyncio import gather
 from notifications import NotifyHandler, NotifyRequest
+from sharded_queue import Queue, RuntimeStorage, Worker
 
 
-async def main():
+async def example():
     queue = Queue(RuntimeStorage())
 
     # let's register notification for first 9 users
     await queue.register(NotifyHandler, *[NotifyRequest(n) for n in range(1, 9)])
 
-    # now all requests are waiting for workers on 3 notify handler tubes
-    # first tube contains notify request for users 1, 4, 7
-    # second tube contains requests for 2, 5, 8 and so on
-    # they were distributed using route handler method
+    '''
+    now all requests are waiting for workers on 3 notify handler tubes
+    they were distributed using route handler method
+    first tube contains notify request for users 1, 4, 7
+    second tube contains requests for 2, 5, 8 and other goes to third tube
+    '''
 
     worker = Worker(queue)
-    # we can run worker with processed message limit
-    # in this example we will run three coroutines that will process messages
-    # workers will bind to any tube and process all 3 messages
-    # in advance, you can run workers on a distributed system
     futures = [
         worker.loop(3),
         worker.loop(3),
         worker.loop(3),
     ]
 
-    # now all emails were send
+    '''
+    we can run worker with processed message limit
+    in this example we run three coroutines that will process messages
+    workers will bind to each tube and process all 3 messages
+    '''
     await gather(*futures)
+
+    # now all emails were send
 ```
-
-## Routes
-
-`route` method returns an array of routes, each route is defind using:
-- `thread` - requests pipe that uses strict order prcessing
-- `priority` - define priority for you requests inside a thread
 
 ## Handlers
 
-As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler
+As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler using `start` and `stop` methods
 
 ```py
 class ParseEventRequest(NamedTuple):
@@ -147,7 +147,7 @@ class ParseEventHandler(Handler):
 ## Queue configuration
 You can configure sharded queue using env.
 - `QUEUE_COORDINATOR_DELAY=1` Coordinator delay in seconds on empty queues
-- `QUEUE_DEFAULT_priority='0'` Default queue priority
+- `QUEUE_DEFAULT_PRIORITY='0'` Default queue priority
 - `QUEUE_DEFAULT_THREAD='0'` Default queue thread
 - `QUEUE_TUBE_PREFIX='tube_'` Default queue prefix
 - `QUEUE_WORKER_BATCH_SIZE=128` Worker batch processing size
