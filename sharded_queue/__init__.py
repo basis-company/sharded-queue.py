@@ -211,7 +211,7 @@ class Worker:
     coordinator: Coordinator
     queue: Queue
 
-    def page_size(self, limit: int | None = None) -> int:
+    def page_size(self, limit: Optional[int] = None) -> int:
         if limit is None:
             return settings.worker_batch_size
 
