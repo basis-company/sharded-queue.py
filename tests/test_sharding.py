@@ -65,7 +65,7 @@ async def test_queue() -> None:
     assert context['started'] == 0
     assert context['stopped'] == 0
 
-    worker = Worker(coordinator=RuntimeCoordinator(), queue=queue)
+    worker = Worker(RuntimeCoordinator(), queue)
     await worker.loop(2)
 
     assert context['started'] != 0

@@ -4,19 +4,6 @@
 
 Imagine your job queue operates at very high rps and needs distribution over multiple workers. But you need to keep context-sensitive requests in same thread and manage thread request processing priority. In other words, sharded queue is a queue with sub-queues inside. Tasks are executed in FIFO order and you define how to route them correctly per handler basis.
 
-There are some roles that you need to understand:
-- `request` a simple message that should be delivered to a handler
-- `handler` request handler that performs the job
-- `route` defines internal queue that is used for request distribution
-    - `thread` a group of context-sensitive requests
-    - `priority` can be used to sort requests inside the thread
-
-Runtime consist of several components:
-- `coordinator` is a mechanism that helps worker findout the queue
-- `queue` is used to register requests
-- `storage` a database containing queue data
-- `worker` performs requests using handler
-
 ## Installation
 Install using pip
 ```
@@ -24,7 +11,14 @@ pip install sharded-queue
 ```
 
 ## Getting started
-First of all you need to define your handler. Handler methods are written using batch approach to reduce io latency per each message. Let's start with a simple notification task.
+There are some roles that you need to understand:
+- `request` a simple message that should be delivered to a handler
+- `handler` request handler that performs the job
+- `route` defines internal queue that is used for request distribution
+    - `thread` a group of context-sensitive requests
+    - `priority` can be used to sort requests inside the thread
+
+Let's start with a simple notification task that is shared by 3 threads and there are no priorities. Notice, that handler methods are written using batch approach to reduce io latency per each message.
 ```py
 from sharded_queue import Handler, Queue, Route
 
@@ -42,7 +36,7 @@ class NotifyHandler(Handler):
         Spread requests by 3 threads that can be concurrently processed
         '''
         return [
-            Route(thread=str(request.user_id % 3))
+            Route(thread=request.user_id % 3)
             for request in requests
         ]
 
@@ -57,44 +51,46 @@ class NotifyHandler(Handler):
 
 ## Usage example
 
-When a handler is described you can use queue and worker api to manage and process tasks.
+When a handler is described you can use queue and worker api to manage and process tasks. Let's describe runtime components:
+- `coordinator` is a mechanism that helps worker findout the queue
+- `queue` is used to register requests
+- `storage` a database containing queue data
+- `worker` performs requests using handler
+
 ```py
 from asyncio import gather
 from notifications import NotifyHandler, NotifyRequest
-from sharded_queue import Queue, RuntimeStorage, Worker
+from sharded_queue import Queue, RuntimeCoordinator, RuntimeStorage, Worker
 
 
 async def example():
-    queue = Queue(RuntimeStorage())
-
-    # let's register notification for first 9 users
+    '''
+    let's register notification for first 9 users
+    '''
+    queue: Queue = Queue(RuntimeStorage())
     await queue.register(NotifyHandler, *[NotifyRequest(n) for n in range(1, 9)])
-
     '''
     now all requests are waiting for workers on 3 notify handler tubes
     they were distributed using route handler method
     first tube contains notify request for users 1, 4, 7
     second tube contains requests for 2, 5, 8 and other goes to third tube
     '''
-
-    worker = Worker(queue)
     futures = [
-        worker.loop(3),
-        worker.loop(3),
-        worker.loop(3),
+        Worker(RuntimeCoordinator(), queue).loop(3),
+        Worker(RuntimeCoordinator(), queue).loop(3),
+        Worker(RuntimeCoordinator(), queue).loop(3),
     ]
-
     '''
-    we can run worker with processed message limit
-    in this example we run three coroutines that will process messages
-    workers will bind to each tube and process all 3 messages
+    we've just run three coroutines that will process messages
+    workers will bind to each thread and process all messages
     '''
     await gather(*futures)
-
-    # now all emails were send
+    '''
+    now all emails were send in 3 threads
+    '''
 ```
 
-## Handlers
+## Handler lifecycle
 
 As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler using `start` and `stop` methods
 
@@ -143,7 +139,7 @@ class ParseEventHandler(Handler):
         run any code when queue is empty and worker stops processing thread
         '''
 ```
-## Queue configuration
+## Advanced queue configuration
 You can configure sharded queue using env
 - `QUEUE_COORDINATOR_DELAY = 1`\
 Coordinator delay in seconds on empty queues
@@ -166,7 +162,7 @@ from sharded_queue import settings
 settings.coordinator_delay = 5
 settings.worker_batch_size = 64
 
-worker = Worker(Queue(RuntimeStorage()))
+worker = Worker(RuntimeCoordinator(), Queue(RuntimeStorage()))
 await worker.loop()
 
 ```
