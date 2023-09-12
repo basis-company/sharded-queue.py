@@ -12,8 +12,7 @@ pip install sharded-queue
 ```
 
 ## Getting started
-First of all you need to define your handler. Handler methods are written using batch approach to reduce io latency per each message.\
-Let's start with a simple notification task:
+First of all you need to define your handler. Handler methods are written using batch approach to reduce io latency per each message. Let's start with a simple notification task.
 ```py
 from sharded_queue import Handler, Queue, Route
 
