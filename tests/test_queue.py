@@ -40,7 +40,8 @@ class SyncHandler(Handler):
 
 @mark.asyncio
 async def test_queue() -> None:
-    queue: Queue = Queue(JsonTupleSerializer(), RuntimeStorage())
+    storage = RuntimeStorage()
+    queue: Queue = Queue(JsonTupleSerializer(), storage)
 
     def get_pipe(thread: int) -> str:
         return Tube(SyncHandler, Route(thread=str(thread))).pipe
@@ -54,13 +55,13 @@ async def test_queue() -> None:
         Request(5),
     )
 
-    assert get_pipe(0) in queue.storage.data
-    assert get_pipe(1) in queue.storage.data
-    assert get_pipe(2) not in queue.storage.data
+    assert get_pipe(0) in storage.data
+    assert get_pipe(1) in storage.data
+    assert get_pipe(2) not in storage.data
 
-    assert await queue.storage.length(get_pipe(0)) == 2
-    assert await queue.storage.length(get_pipe(1)) == 3
-    assert await queue.storage.length(get_pipe(2)) == 0
+    assert await storage.length(get_pipe(0)) == 2
+    assert await storage.length(get_pipe(1)) == 3
+    assert await storage.length(get_pipe(2)) == 0
 
     assert context['started'] == 0
     assert context['stopped'] == 0
@@ -76,19 +77,19 @@ async def test_queue() -> None:
     thread = str(synced[0].bucket % 2)
 
     if thread == '0':
-        assert await queue.storage.length(get_pipe(0)) == 0
-        assert await queue.storage.length(get_pipe(1)) == 3
+        assert await storage.length(get_pipe(0)) == 0
+        assert await storage.length(get_pipe(1)) == 3
     else:
-        assert await queue.storage.length(get_pipe(0)) == 2
-        assert await queue.storage.length(get_pipe(1)) == 1
+        assert await storage.length(get_pipe(0)) == 2
+        assert await storage.length(get_pipe(1)) == 1
 
     # test worker switch
     settings.worker_empty_pause = 0
     (last_started, last_stopped) = tuple(context.values())
     await worker.loop(3)
     assert len(synced) == 5
-    assert await queue.storage.length(get_pipe(0)) == 0
-    assert await queue.storage.length(get_pipe(1)) == 0
+    assert await storage.length(get_pipe(0)) == 0
+    assert await storage.length(get_pipe(1)) == 0
     assert last_started != context['started']
     assert last_stopped != context['stopped']
 
