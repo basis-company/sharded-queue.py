@@ -112,7 +112,7 @@ You can configure sharded queue using env.
 - `QUEUE_WORKER_EMPTY_LIMIT=16` Worker empty queue attempt limit berfore queue rebind
 - `QUEUE_WORKER_EMPTY_PAUSE=0.1` Worker pause in seconds on empty queue
 
-Or import and settings object:
+Or import and change settings object:
 ```py
 from sharded_queue import settings
 settings.coordinator_delay = 5
