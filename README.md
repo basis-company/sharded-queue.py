@@ -7,7 +7,7 @@ Imagine your job queue operates at very high rps and needs distribution over mul
 There are some roles that you need to understand:
 - `request` a simple message that should be delivered to a handler
 - `handler` request handler that performs the job
-- `route` an object that defines thread and priority
+- `route` an object that defines request thread and priority
 
 Runtime consist of several components:
 - `queue` helps you to register requests to a handler
