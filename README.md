@@ -2,12 +2,14 @@
 
 ## Introduction
 
-Imagine your job queue operates at very high rps and needs distribution over multiple workers. But you need to keep context-sensitive requests in same thread and manage thread request processing priority. In other words, sharded queue is a queue with sub-queues inside. Tasks are executed in FIFO order due priority and you define how to route them correctly per handler basis.
+Imagine your job queue operates at very high rps and needs distribution over multiple workers. But you need to keep context-sensitive requests in same thread and manage thread request processing priority. In other words, sharded queue is a queue with sub-queues inside. Tasks are executed in FIFO order and you define how to route them correctly per handler basis.
 
 There are some roles that you need to understand:
 - `request` a simple message that should be delivered to a handler
 - `handler` request handler that performs the job
-- `route` an object that defines request thread and priority
+- `route` defines internal queue that is used for request distribution
+    - `thread` a group of context-sensitive requests
+    - `priority` can be used to sort requests inside the thread
 
 Runtime consist of several components:
 - `queue` helps you to register requests to a handler
