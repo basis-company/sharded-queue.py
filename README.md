@@ -16,7 +16,7 @@ Install library.
 Describe your handler.
 ```py
 from repositories import UserRepository
-from sharded_queue import Handler, Queue, RequestRoute, Route
+from sharded_queue import Handler, Queue, Route
 from services import construct_message, mailer
 
 class NotifyRequest:
@@ -32,7 +32,7 @@ class NotifyHandler(Handler):
         Spread requests by 3 threads that can be concurrently processed
         '''
         return [
-            RequestRoute(request, Route(thread=str(request.user_id % 3)))
+            Route(thread=str(request.user_id % 3))
             for request in requests
         ]
 

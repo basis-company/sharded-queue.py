@@ -55,11 +55,6 @@ class Route(NamedTuple):
     order: str = settings.default_order
 
 
-class RequestRoute(NamedTuple):
-    request: Any
-    route: Route
-
-
 class Handler(Generic[T]):
     orders: Optional[list[str]] = None
 
@@ -72,12 +67,9 @@ class Handler(Generic[T]):
         return list(get_type_hints(cls.handle).values())[0]
 
     @classmethod
-    async def route(cls, *requests: T) -> list[RequestRoute]:
+    async def route(cls, *requests: T) -> list[Route]:
         return [
-            RequestRoute(
-                request,
-                Route(settings.default_thread, settings.default_order)
-            )
+            Route(settings.default_thread, settings.default_order)
             for request in requests
         ]
 
@@ -157,10 +149,10 @@ class Queue(Generic[T]):
     storage: Storage
 
     async def register(self, handler: type[Handler], *requests: T) -> None:
+        routes = await handler.route(*requests)
         tubes: list[RequestTube] = [
-            RequestTube(request, Tube(handler, route))
-            for (request, route)
-            in await handler.route(*requests)
+            RequestTube(requests[n], Tube(handler, routes[n]))
+            for n in range(len(routes))
         ]
 
         for pipe in set([tube.pipe for (_, tube) in tubes]):

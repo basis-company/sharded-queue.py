@@ -3,9 +3,9 @@ from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import (Handler, JsonTupleSerializer, Queue, RequestRoute,
-                           Route, RuntimeCoordinator, RuntimeStorage, Tube,
-                           Worker, settings)
+from sharded_queue import (Handler, JsonTupleSerializer, Queue, Route,
+                           RuntimeCoordinator, RuntimeStorage, Tube, Worker,
+                           settings)
 
 
 class Request(NamedTuple):
@@ -22,10 +22,9 @@ synced: list[Request] = []
 
 class SyncHandler(Handler):
     @classmethod
-    async def route(cls, *requests: Request) -> list[RequestRoute]:
+    async def route(cls, *requests: Request) -> list[Route]:
         return [
-            RequestRoute(request, Route(thread=str(request.bucket % 2)))
-            for request in requests
+            Route(thread=str(request.bucket % 2)) for request in requests
         ]
 
     async def start(self) -> None:
