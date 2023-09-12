@@ -1,7 +1,5 @@
 name: Test
-
 on: [push]
-
 jobs:
   build:
 
@@ -19,6 +17,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - run: pip install -r requirements.txt
+
       - run: pip install mypy pytest pytest-asyncio pytest-cov
+
       - run: mypy .
+
       - run: pytest --cov=sharded_queue .
