@@ -24,7 +24,7 @@ from sharded_queue import Handler, Queue, Route
 class NotifyRequest:
     '''
     In this example we have simple notify request containing user identifier
-    Value would be used to shard your tasks over workers
+    In addition, the value is used to shard requests over worker threads
     '''
     user_id: int
 
@@ -93,6 +93,9 @@ As you can notice, routing is made using static method, but perform is an instan
 
 ```py
 class ParseEventRequest(NamedTuple):
+    '''
+    Event identifier should be enough to get it contents from storage
+    '''
     event: int
 
 class ParseEventHandler(Handler):
@@ -115,7 +118,7 @@ class ParseEventHandler(Handler):
 
     async def start(self):
         '''
-        run any code before perform would be called
+        run any code on worker is bind to the queue
         '''
 
     async def perform(self, *requests: ParseEventRequest):
@@ -130,7 +133,7 @@ class ParseEventHandler(Handler):
 
     async def stop(self):
         '''
-        run any code after perform would be called
+        run any code when queue is empty and worker stops processing thread
         '''
 ```
 ## Queue configuration
