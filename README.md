@@ -12,11 +12,10 @@ There are some roles that you need to understand:
     - `priority` can be used to sort requests inside the thread
 
 Runtime consist of several components:
-- `queue` helps you to register requests to a handler
-- `storage` a database that holds all queue data
-- `serializer` converts your request to string and restore them back
-- `worker` performs requests using handler
 - `coordinator` is a mechanism that helps worker findout the queue
+- `queue` is used to register requests
+- `storage` a database containing queue data
+- `worker` performs requests using handler
 
 ## Installation
 Install using pip
@@ -145,16 +144,23 @@ class ParseEventHandler(Handler):
         '''
 ```
 ## Queue configuration
-You can configure sharded queue using env.
-- `QUEUE_COORDINATOR_DELAY=1` Coordinator delay in seconds on empty queues
-- `QUEUE_DEFAULT_PRIORITY='0'` Default queue priority
-- `QUEUE_DEFAULT_THREAD='0'` Default queue thread
-- `QUEUE_TUBE_PREFIX='tube_'` Default queue prefix
-- `QUEUE_WORKER_BATCH_SIZE=128` Worker batch processing size
-- `QUEUE_WORKER_EMPTY_LIMIT=16` Worker empty queue attempt limit berfore queue rebind
-- `QUEUE_WORKER_EMPTY_PAUSE=0.1` Worker pause in seconds on empty queue
+You can configure sharded queue using env
+- `QUEUE_COORDINATOR_DELAY = 1`\
+Coordinator delay in seconds on empty queues
+- `QUEUE_DEFAULT_PRIORITY = 0`\
+Default queue priority
+- `QUEUE_DEFAULT_THREAD = 0`\
+Default queue thread
+- `QUEUE_TUBE_PREFIX = 'tube_'`\
+Default queue prefix
+- `QUEUE_WORKER_BATCH_SIZE = 128`\
+Worker batch processing size
+- `QUEUE_WORKER_EMPTY_LIMIT = 16`\
+Worker empty queue attempt limit berfore queue rebind
+- `QUEUE_WORKER_EMPTY_PAUSE = 0.1`\
+Worker pause in seconds on empty queue
 
-Or import and change settings object:
+You can import and change settings manually
 ```py
 from sharded_queue import settings
 settings.coordinator_delay = 5
