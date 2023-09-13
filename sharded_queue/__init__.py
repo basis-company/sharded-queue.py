@@ -108,7 +108,7 @@ class Tube(NamedTuple):
     def parse_pipe(cls, tube: str) -> Self:
         [*module, name, thread, priority] = tube.split('/')
         handler = getattr(import_module("_".join(module)), name)
-        return Tube(handler, Route(int(thread), int(priority)))
+        return cls(handler, Route(int(thread), int(priority)))
 
     @property
     def pipe(self) -> str:
@@ -206,7 +206,7 @@ class Worker:
             for pipe in await self.queue.storage.pipes():
                 if not await self.queue.storage.length(pipe):
                     continue
-                tube = Tube.parse_pipe(pipe)
+                tube: Tube = Tube.parse_pipe(pipe)
                 if tube.handler.priorities:
                     if tube.route.priority != tube.handler.priorities[0]:
                         if not all_pipes:
