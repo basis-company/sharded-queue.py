@@ -84,7 +84,9 @@ class Queue(Generic[T]):
         self.storage = storage
         self.serializer = serializer or JsonTupleSerializer()
 
-    async def register(self, handler: type[Handler], *requests: T) -> None:
+    async def register(
+        self, handler: type[Handler], *requests: T, if_not_exists: bool = False
+    ) -> None:
         routes = await handler.route(*requests)
         tubes: list[tuple[T, Tube]] = [
             (requests[n], Tube(handler, routes[n]))
@@ -93,9 +95,14 @@ class Queue(Generic[T]):
 
         for pipe in set([tube.pipe for (_, tube) in tubes]):
             await self.storage.append(pipe, *[
-                self.serializer.serialize(request)
-                for (request, tube) in tubes
-                if tube.pipe == pipe
+                msg for msg in
+                [
+                    self.serializer.serialize(request)
+                    for (request, tube) in tubes
+                    if tube.pipe == pipe
+                ]
+                if not if_not_exists
+                or not await self.storage.contains(pipe, msg)
             ])
 
 
