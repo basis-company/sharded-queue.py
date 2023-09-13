@@ -151,7 +151,7 @@ class Worker:
             processed = processed + await self.process(tube, limit)
 
     async def process(self, tube: Tube, limit: Optional[int] = None) -> int:
-        unserialize = self.queue.serializer.unserialize
+        deserialize = self.queue.serializer.deserialize
         storage = self.queue.storage
 
         cls = tube.handler.request_cls()
@@ -175,7 +175,7 @@ class Worker:
                         continue
 
                     await instance.handle(*[
-                        unserialize(cls, msg) for msg in msgs
+                        deserialize(cls, msg) for msg in msgs
                     ])
 
                     await storage.pop(pipe, len(msgs))

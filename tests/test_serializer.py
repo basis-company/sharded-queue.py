@@ -32,6 +32,6 @@ async def test_dataclass() -> None:
 
 async def runner(serializer: Serializer, request: Any):
     serialized = serializer.serialize(request)
-    parsed = serializer.unserialize(type(request), serialized)
+    parsed = serializer.deserialize(type(request), serialized)
     assert isinstance(parsed, type(request))
     assert parsed.name == request.name

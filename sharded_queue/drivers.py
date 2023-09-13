@@ -18,7 +18,7 @@ class JsonTupleSerializer(Serializer):
     def serialize(self, request: T) -> str:
         return dumps(self.get_values(request))
 
-    def unserialize(self, cls: type[T], source: str) -> T:
+    def deserialize(self, cls: type[T], source: str) -> T:
         return cls(*loads(source))
 
 
