@@ -56,7 +56,7 @@ class NotifyHandler(Handler):
 ## Usage example
 
 When a handler is described you can use queue and worker api to manage and process tasks. Let's describe runtime components:
-- `coordinator` helps worker findout the queue
+- `lock` helps worker bind to the queue
 - `queue` is used to register requests
 - `storage` a database containing queue data
 - `worker` performs requests using handler
@@ -64,7 +64,7 @@ When a handler is described you can use queue and worker api to manage and proce
 ```py
 from asyncio import gather
 from notifications import NotifyHandler, NotifyRequest
-from sharded_queue import Queue, RuntimeCoordinator, RuntimeStorage, Worker
+from sharded_queue import Queue, RuntimeLock, RuntimeStorage, Worker
 
 
 async def example():
@@ -80,9 +80,9 @@ async def example():
     second tube contains requests for 2, 5, 8 and other goes to third tube
     '''
     futures = [
-        Worker(RuntimeCoordinator(), queue).loop(3),
-        Worker(RuntimeCoordinator(), queue).loop(3),
-        Worker(RuntimeCoordinator(), queue).loop(3),
+        Worker(RuntimeLock(), queue).loop(3),
+        Worker(RuntimeLock(), queue).loop(3),
+        Worker(RuntimeLock(), queue).loop(3),
     ]
     '''
     we've just run three coroutines that will process messages
@@ -96,9 +96,9 @@ async def example():
 
 ## Drivers
 There are several implementations of components:
-- `RedisCoordinator` persist queue binds in redis using setnx api
+- `RedisLock` persist lock acquires in redis using setnx api
 - `RedisStorage` persist msgs using lists and lrange/lpop/rpush api
-- `RuntimeCoordinator` persist queue binds in memory and can be used in a simple runtime distribution
+- `RuntimeLock` persist lock acquires in memory and can be used in a simple runtime distribution
 - `RuntimeStorage` persist msgs in dict and can be used in a simple runtime distribution
 ## Handler lifecycle
 
@@ -151,14 +151,14 @@ class ParseEventHandler(Handler):
 ```
 ## Advanced queue configuration
 You can configure sharded queue using env
-- `QUEUE_COORDINATOR_PREFIX = 'lock_'`\
-Coordinator lock prefix
-- `QUEUE_COORDINATOR_TIMEOUT = 24 * 60 * 60`\
-Coordinator lock ttl
 - `QUEUE_DEFAULT_PRIORITY = 0`\
 Default queue priority
 - `QUEUE_DEFAULT_THREAD = 0`\
 Default queue thread
+- `QUEUE_LOCK_PREFIX = 'lock_'`\
+Lock key prefix
+- `QUEUE_LOCK_TIMEOUT = 24 * 60 * 60`\
+Lock key ttl
 - `QUEUE_TUBE_PREFIX = 'tube_'`\
 Default queue prefix
 - `QUEUE_WORKER_ACQUIRE_DELAY = 1`\
@@ -176,7 +176,7 @@ from sharded_queue import settings
 settings.worker_acquire_delay = 5
 settings.worker_batch_size = 64
 
-worker = Worker(RuntimeCoordinator(), Queue(RuntimeStorage()))
+worker = Worker(RuntimeLock(), Queue(RuntimeStorage()))
 await worker.loop()
 
 ```

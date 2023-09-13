@@ -2,8 +2,8 @@ from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import (Handler, JsonTupleSerializer, Queue, Route,
-                           RuntimeCoordinator, RuntimeStorage, Tube, Worker)
+from sharded_queue import (Handler, Queue, Route, RuntimeLock, RuntimeStorage,
+                           Tube, Worker)
 
 
 class TimesheetSign(NamedTuple):
@@ -38,7 +38,7 @@ async def test_piorities() -> None:
         TimesheetSign(n) for n in range(1, 4)
     ])
 
-    worker = Worker(RuntimeCoordinator(), queue)
+    worker = Worker(RuntimeLock(), queue)
     await worker.loop(1)
     assert len(processed) == 1
 

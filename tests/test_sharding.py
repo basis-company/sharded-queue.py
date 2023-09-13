@@ -3,9 +3,8 @@ from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import (Handler, JsonTupleSerializer, Queue, Route,
-                           RuntimeCoordinator, RuntimeStorage, Tube, Worker,
-                           settings)
+from sharded_queue import (Handler, Queue, Route, RuntimeLock, RuntimeStorage,
+                           Tube, Worker, settings)
 
 
 class Request(NamedTuple):
@@ -65,7 +64,7 @@ async def test_queue() -> None:
     assert context['started'] == 0
     assert context['stopped'] == 0
 
-    worker = Worker(RuntimeCoordinator(), queue)
+    worker = Worker(RuntimeLock(), queue)
     await worker.loop(2)
 
     assert context['started'] != 0

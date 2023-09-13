@@ -15,16 +15,6 @@ T = TypeVar('T')
 
 
 class ShardedQueueSettings(BaseSettings):
-    coordinator_prefix: str = Field(
-        default="lock_",
-        title="Coordinator lock prefix"
-    )
-
-    coordinator_timeout: int = Field(
-        default=24*60*60,
-        title="Coordinator lock ttl"
-    )
-
     default_priority: int = Field(
         default='0',
         title='Default queue priority'
@@ -33,6 +23,16 @@ class ShardedQueueSettings(BaseSettings):
     default_thread: int = Field(
         default='0',
         title='Default queue thread'
+    )
+
+    lock_prefix: str = Field(
+        default="lock_",
+        title="Lock key prefix"
+    )
+
+    lock_timeout: int = Field(
+        default=24*60*60,
+        title="Lock key ttl"
     )
 
     model_config = SettingsConfigDict(env_prefix='queue_')
@@ -187,17 +187,17 @@ class Queue(Generic[T]):
             ])
 
 
-class Coordinator(Protocol):
-    async def bind(self, tube: str) -> bool:
+class Lock(Protocol):
+    async def acquire(self, tube: str) -> bool:
         raise NotImplementedError
 
-    async def unbind(self, tube: str) -> None:
+    async def release(self, tube: str) -> None:
         raise NotImplementedError
 
 
 @dataclass
 class Worker:
-    coordinator: Coordinator
+    lock: Lock
     queue: Queue
 
     async def acquire_tube(self) -> Tube:
@@ -218,7 +218,7 @@ class Worker:
                                 priority=tube.handler.priorities[0]
                             )
                         )
-                if not await self.coordinator.bind(tube.pipe):
+                if not await self.lock.acquire(tube.pipe):
                     continue
                 return tube
 
@@ -280,23 +280,22 @@ class Worker:
                         break
                     await sleep(settings.worker_empty_pause)
 
-        await self.coordinator.unbind(tube.pipe)
+        await self.lock.release(tube.pipe)
         return processed_counter
 
 
-class RuntimeCoordinator(Coordinator):
+class RuntimeLock(Lock):
     def __init__(self) -> None:
-        super().__init__()
-        self.binds: dict[str, bool] = {}
+        self.storage: dict[str, bool] = {}
 
-    async def bind(self, pipe: str) -> bool:
-        if pipe in self.binds:
+    async def acquire(self, pipe: str) -> bool:
+        if pipe in self.storage:
             return False
-        self.binds[pipe] = True
+        self.storage[pipe] = True
         return True
 
-    async def unbind(self, pipe: str) -> None:
-        del self.binds[pipe]
+    async def release(self, pipe: str) -> None:
+        del self.storage[pipe]
 
 
 class RuntimeStorage(Storage):
@@ -329,20 +328,20 @@ class RuntimeStorage(Storage):
         return self.data[tube][0:max] if tube in self.data else []
 
 
-class RedisCoordinator(Coordinator):
+class RedisLock(Lock):
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
 
-    async def bind(self, tube: str) -> bool:
+    async def acquire(self, tube: str) -> bool:
         return None is not await self.redis.set(
-            name=settings.coordinator_prefix + tube,
-            ex=settings.coordinator_timeout,
+            name=settings.lock_prefix + tube,
+            ex=settings.lock_timeout,
             nx=True,
             value=1,
         )
 
-    async def unbind(self, tube: str) -> None:
-        await self.redis.delete(settings.coordinator_prefix + tube)
+    async def release(self, tube: str) -> None:
+        await self.redis.delete(settings.lock_prefix + tube)
 
 
 class RedisStorage(Storage):
