@@ -21,6 +21,8 @@ async def runner(storage) -> None:
     await storage.append('tester', 'q')
     await storage.append('tester', 'w')
     await storage.append('tester', 'e')
+    assert await storage.length('tester') == 3
+    assert await storage.pipes() == ['tester']
     await storage.append('tester', 'r', 't', 'y')
     assert await storage.length('tester') == 6
     assert await storage.length('tester2') == 0
