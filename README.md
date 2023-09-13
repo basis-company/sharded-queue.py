@@ -96,10 +96,10 @@ async def example():
 
 ## Drivers
 There are several implementations of components:
-- `RedisLock` persist lock acquires in redis using setnx api
+- `RedisLock` persist locks in redis using setnx api
 - `RedisStorage` persist msgs using lists and lrange/lpop/rpush api
-- `RuntimeLock` persist lock acquires in memory and can be used in a simple runtime distribution
-- `RuntimeStorage` persist msgs in dict and can be used in a simple runtime distribution
+- `RuntimeLock` persist locks in memory (process in-memory distribution)
+- `RuntimeStorage` persist msgs in dict (process in-memory distribution)
 ## Handler lifecycle
 
 As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler using `start` and `stop` methods
