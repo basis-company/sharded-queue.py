@@ -152,6 +152,12 @@ class ParseEventHandler(Handler):
         run any code when queue is empty and worker stops processing thread
         '''
 ```
+## Deduplication
+There is an optional if_not_exists flag. When you use it request will be registered only if not persent in a queue
+```py
+await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
+await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
+```
 ## Advanced queue configuration
 You can configure sharded queue using env
 - `QUEUE_DEFAULT_PRIORITY = 0`\
