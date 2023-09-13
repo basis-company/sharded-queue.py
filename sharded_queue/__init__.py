@@ -129,11 +129,6 @@ def get_tube(tube: str) -> Tube:
     return Tube(handler, Route(int(thread), int(priority)))
 
 
-class RequestTube(NamedTuple, Generic[T]):
-    request: T
-    tube: Tube
-
-
 class Serializer(Protocol[T]):
     def serialize(self, request: T) -> str:
         raise NotImplementedError
@@ -179,8 +174,8 @@ class Queue(Generic[T]):
 
     async def register(self, handler: type[Handler], *requests: T) -> None:
         routes = await handler.route(*requests)
-        tubes: list[RequestTube] = [
-            RequestTube(requests[n], Tube(handler, routes[n]))
+        tubes: list[tuple[T, Tube]] = [
+            (requests[n], Tube(handler, routes[n]))
             for n in range(len(routes))
         ]
 
