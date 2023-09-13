@@ -1,5 +1,6 @@
 # Sharded queue
 [![CI](https://github.com/basis-company/sharded-queue.py/workflows/Test/badge.svg?event=push)](https://github.com/basis-company/sharded-queue.py/actions/workflows/test.yml?query=event%3Apush)
+[![codecov](https://codecov.io/gh/basis-company/sharded-queue.py/graph/badge.svg?token=Y4EDPMQ6UG)](https://codecov.io/gh/basis-company/sharded-queue.py)
 [![pypi](https://img.shields.io/pypi/v/sharded-queue.svg)](https://pypi.python.org/pypi/sharded-queue)
 [![license](https://img.shields.io/github/license/basis-company/sharded-queue.py.svg)](https://github.com/basis-company/sharded-queue.py/blob/master/LICENSE)
 [![downloads](https://static.pepy.tech/badge/sharded-queue/month)](https://pepy.tech/project/sharded-queue)
