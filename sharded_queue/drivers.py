@@ -1,5 +1,5 @@
 from json import dumps, loads
-from typing import List, Sequence, TypeVar
+from typing import Any, List, Sequence, TypeVar
 
 from redis.asyncio import Redis
 
@@ -10,13 +10,13 @@ T = TypeVar('T')
 
 
 class JsonTupleSerializer(Serializer):
-    def serialize(self, request: T) -> str:
+    def get_values(self, request) -> list[Any]:
         if isinstance(request, Sequence):
-            values = [k for k in request]
-        else:
-            values = list(request.__dict__.values())
+            return [k for k in request]
+        return list(request.__dict__.values())
 
-        return dumps(values)
+    def serialize(self, request: T) -> str:
+        return dumps(self.get_values(request))
 
     def unserialize(self, cls: type[T], source: str) -> T:
         return cls(*loads(source))
