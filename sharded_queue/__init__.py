@@ -162,10 +162,10 @@ class Storage(Protocol):
     async def length(self, tube: str) -> int:
         raise NotImplementedError
 
-    async def pop(self, tube: str, max: int) -> list[str]:
+    async def pipes(self) -> list[str]:
         raise NotImplementedError
 
-    async def pipes(self) -> list[str]:
+    async def pop(self, tube: str, max: int) -> list[str]:
         raise NotImplementedError
 
     async def range(self, tube: str, max: int) -> list[str]:
@@ -355,21 +355,22 @@ class RedisStorage(Storage):
         self.redis = redis
 
     async def append(self, tube: str, *msgs: str) -> int:
-        return await self.redis.rpush(settings.tube_prefix + tube, *msgs)
+        return await self.redis.rpush(self.key(tube), *msgs)
+
+    def key(self, tube):
+        return settings.tube_prefix + tube
 
     async def length(self, tube: str) -> int:
-        return await self.redis.llen(settings.tube_prefix + tube)
-
-    async def pop(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lpop(settings.tube_prefix + tube, max) or []
+        return await self.redis.llen(self.key(tube))
 
     async def pipes(self) -> list[str]:
         return [
             key[len(settings.tube_prefix):]
-            for key in await self.redis.keys(settings.tube_prefix + '*')
+            for key in await self.redis.keys(self.key('*'))
         ]
 
+    async def pop(self, tube: str, max: int) -> list[str]:
+        return await self.redis.lpop(self.key(tube), max) or []
+
     async def range(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lrange(settings.tube_prefix + tube, 0, max-1) or []
-
-
+        return await self.redis.lrange(self.key(tube), 0, max-1) or []
