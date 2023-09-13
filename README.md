@@ -145,7 +145,7 @@ class ParseEventHandler(Handler):
     async def handle(self, *requests: ParseEventRequest) -> None:
         '''
         process requests batch
-        ```
+        '''
 
     async def stop(self):
         '''
