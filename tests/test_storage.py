@@ -19,7 +19,9 @@ async def test_redis_storage() -> None:
 
 async def runner(storage) -> None:
     await storage.append('tester', 'q')
+    assert not await storage.contains('tester', 'w')
     await storage.append('tester', 'w')
+    assert await storage.contains('tester', 'w')
     await storage.append('tester', 'e')
     assert await storage.length('tester') == 3
     assert await storage.pipes() == ['tester']

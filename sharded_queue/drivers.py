@@ -50,6 +50,9 @@ class RuntimeStorage(Storage):
 
         return len(self.data[tube])
 
+    async def contains(self, tube: str, msg: str) -> bool:
+        return tube in self.data and msg in self.data[tube]
+
     async def length(self, tube: str) -> int:
         return len(self.data[tube]) if tube in self.data else 0
 
@@ -88,6 +91,9 @@ class RedisStorage(Storage):
 
     async def append(self, tube: str, *msgs: str) -> int:
         return await self.redis.rpush(self.key(tube), *msgs)
+
+    async def contains(self, tube: str, msg: str) -> bool:
+        return await self.redis.lpos(self.key(tube), msg) is not None
 
     def key(self, tube):
         return settings.tube_prefix + tube
