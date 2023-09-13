@@ -153,7 +153,7 @@ class ParseEventHandler(Handler):
         '''
 ```
 ## Deduplication
-There is an optional if_not_exists flag. When you use it request will be registered only if not persent in a queue
+There is an optional if_not_exists flag. If it is set, request will be registered only if not persent in a queue
 ```py
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
