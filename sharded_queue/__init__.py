@@ -15,11 +15,6 @@ T = TypeVar('T')
 
 
 class ShardedQueueSettings(BaseSettings):
-    coordinator_delay: float = Field(
-        default=1,
-        title="Coordinator delay in seconds on empty queues"
-    )
-
     coordinator_prefix: str = Field(
         default="lock_",
         title="Coordinator lock prefix"
@@ -45,6 +40,11 @@ class ShardedQueueSettings(BaseSettings):
     tube_prefix: str = Field(
         default="tube_",
         title="Queue prefix"
+    )
+
+    worker_acquire_delay: float = Field(
+        default=1,
+        title="Worker acquire delay in seconds on empty queues"
     )
 
     worker_batch_size: int = Field(
@@ -103,9 +103,16 @@ class Tube(NamedTuple):
     handler: type[Handler]
     route: Route
 
+    @classmethod
+    @cache
+    def parse_pipe(cls, tube: str) -> Self:
+        [*module, name, thread, priority] = tube.split('/')
+        handler = getattr(import_module("_".join(module)), name)
+        return Tube(handler, Route(int(thread), int(priority)))
+
     @property
     def pipe(self) -> str:
-        return '#'.join([
+        return '/'.join([
             self.handler.__module__,
             self.handler.__name__,
             str(self.route.thread),
@@ -120,13 +127,6 @@ class Tube(NamedTuple):
             yield instance
         finally:
             await instance.stop()
-
-
-@cache
-def get_tube(tube: str) -> Tube:
-    [*module, name, thread, priority] = tube.split('#')
-    handler = getattr(import_module("_".join(module)), name)
-    return Tube(handler, Route(int(thread), int(priority)))
 
 
 class Serializer(Protocol[T]):
@@ -188,33 +188,6 @@ class Queue(Generic[T]):
 
 
 class Coordinator(Protocol):
-    async def acquire_tube(self, queue: Queue) -> Tube:
-        all_pipes = False
-        while True:
-            for pipe in await queue.storage.pipes():
-                if not await queue.storage.length(pipe):
-                    continue
-                tube = get_tube(pipe)
-                if tube.handler.priorities:
-                    if tube.route.priority != tube.handler.priorities[0]:
-                        if not all_pipes:
-                            continue
-                        tube = Tube(
-                            handler=tube.handler,
-                            route=Route(
-                                thread=tube.route.thread,
-                                priority=tube.handler.priorities[0]
-                            )
-                        )
-                if not await self.bind(tube.pipe):
-                    continue
-                return tube
-
-            if all_pipes:
-                await sleep(settings.coordinator_delay)
-            else:
-                all_pipes = True
-
     async def bind(self, tube: str) -> bool:
         raise NotImplementedError
 
@@ -227,6 +200,33 @@ class Worker:
     coordinator: Coordinator
     queue: Queue
 
+    async def acquire_tube(self) -> Tube:
+        all_pipes = False
+        while True:
+            for pipe in await self.queue.storage.pipes():
+                if not await self.queue.storage.length(pipe):
+                    continue
+                tube = Tube.parse_pipe(pipe)
+                if tube.handler.priorities:
+                    if tube.route.priority != tube.handler.priorities[0]:
+                        if not all_pipes:
+                            continue
+                        tube = Tube(
+                            handler=tube.handler,
+                            route=Route(
+                                thread=tube.route.thread,
+                                priority=tube.handler.priorities[0]
+                            )
+                        )
+                if not await self.coordinator.bind(tube.pipe):
+                    continue
+                return tube
+
+            if all_pipes:
+                await sleep(settings.worker_acquire_delay)
+            else:
+                all_pipes = True
+
     def page_size(self, limit: Optional[int] = None) -> int:
         if limit is None:
             return settings.worker_batch_size
@@ -236,7 +236,7 @@ class Worker:
     async def loop(self, limit: Optional[int] = None) -> None:
         processed = 0
         while True and limit is None or limit > processed:
-            tube = await self.coordinator.acquire_tube(self.queue)
+            tube = await self.acquire_tube()
             processed = processed + await self.process(tube, limit)
 
     async def process(self, tube: Tube, limit: Optional[int] = None) -> int:

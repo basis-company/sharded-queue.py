@@ -151,8 +151,6 @@ class ParseEventHandler(Handler):
 ```
 ## Advanced queue configuration
 You can configure sharded queue using env
-- `QUEUE_COORDINATOR_DELAY = 1`\
-Coordinator delay in seconds on empty queues
 - `QUEUE_COORDINATOR_PREFIX = 'lock_'`\
 Coordinator lock prefix
 - `QUEUE_COORDINATOR_TIMEOUT = 24 * 60 * 60`\
@@ -163,6 +161,8 @@ Default queue priority
 Default queue thread
 - `QUEUE_TUBE_PREFIX = 'tube_'`\
 Default queue prefix
+- `QUEUE_WORKER_ACQUIRE_DELAY = 1`\
+Worker acquire delay in seconds on empty queues
 - `QUEUE_WORKER_BATCH_SIZE = 128`\
 Worker batch processing size
 - `QUEUE_WORKER_EMPTY_LIMIT = 16`\
@@ -173,7 +173,7 @@ Worker pause in seconds on empty queue
 You can import and change settings manually
 ```py
 from sharded_queue import settings
-settings.coordinator_delay = 5
+settings.worker_acquire_delay = 5
 settings.worker_batch_size = 64
 
 worker = Worker(RuntimeCoordinator(), Queue(RuntimeStorage()))
