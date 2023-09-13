@@ -25,3 +25,8 @@ jobs:
 
       - run: docker run -d -p 6379:6379 redis:${{ matrix.redis-version}}
       - run: pytest --cov=sharded_queue .
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
