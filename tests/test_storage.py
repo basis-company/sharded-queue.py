@@ -1,7 +1,7 @@
 from pytest import mark
 from redis.asyncio import Redis
 
-from sharded_queue import RedisStorage, RuntimeStorage
+from sharded_queue.drivers import RedisStorage, RuntimeStorage
 
 
 @mark.asyncio

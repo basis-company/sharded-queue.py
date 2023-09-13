@@ -64,7 +64,8 @@ When a handler is described you can use queue and worker api to manage and proce
 ```py
 from asyncio import gather
 from notifications import NotifyHandler, NotifyRequest
-from sharded_queue import Queue, RuntimeLock, RuntimeStorage, Worker
+from sharded_queue import Queue, Worker
+from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 
 
 async def example():
@@ -100,6 +101,7 @@ There are several implementations of components:
 - `RedisStorage` persist msgs using lists and lrange/lpop/rpush api
 - `RuntimeLock` persist locks in memory (process in-memory distribution)
 - `RuntimeStorage` persist msgs in dict (process in-memory distribution)
+
 ## Handler lifecycle
 
 As you can notice, routing is made using static method, but perform is an instance method. When a worker start processing requests it can bootstrap and tear down the handler using `start` and `stop` methods
@@ -172,7 +174,9 @@ Worker pause in seconds on empty queue
 
 You can import and change settings manually
 ```py
-from sharded_queue import settings
+from sharded_queue.settings import settings
+from sharded_queue import Queue, Worker
+from sharded_queue.drivers import RuntimeLock RuntimeStorage
 settings.worker_acquire_delay = 5
 settings.worker_batch_size = 64
 

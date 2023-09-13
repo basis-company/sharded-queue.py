@@ -2,8 +2,8 @@ from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import (Handler, Queue, Route, RuntimeLock, RuntimeStorage,
-                           Tube, Worker)
+from sharded_queue import Handler, Queue, Route, Tube, Worker
+from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 
 
 class TimesheetSign(NamedTuple):

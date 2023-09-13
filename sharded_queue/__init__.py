@@ -3,67 +3,14 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import cache
 from importlib import import_module
-from json import dumps, loads
-from typing import (AsyncGenerator, Generic, List, NamedTuple, Optional,
-                    Protocol, Self, Sequence, TypeVar, get_type_hints)
+from typing import (AsyncGenerator, Generic, NamedTuple, Optional, Self,
+                    TypeVar, get_type_hints)
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from redis.asyncio import Redis
+from sharded_queue.drivers import JsonTupleSerializer
+from sharded_queue.protocols import Lock, Serializer, Storage
+from sharded_queue.settings import settings
 
 T = TypeVar('T')
-
-
-class ShardedQueueSettings(BaseSettings):
-    default_priority: int = Field(
-        default='0',
-        title='Default queue priority'
-    )
-
-    default_thread: int = Field(
-        default='0',
-        title='Default queue thread'
-    )
-
-    lock_prefix: str = Field(
-        default="lock_",
-        title="Lock key prefix"
-    )
-
-    lock_timeout: int = Field(
-        default=24*60*60,
-        title="Lock key ttl"
-    )
-
-    model_config = SettingsConfigDict(env_prefix='queue_')
-
-    tube_prefix: str = Field(
-        default="tube_",
-        title="Queue prefix"
-    )
-
-    worker_acquire_delay: float = Field(
-        default=1,
-        title="Worker acquire delay in seconds on empty queues"
-    )
-
-    worker_batch_size: int = Field(
-        default=128,
-        title='Worker batch processing size'
-    )
-
-    worker_empty_limit: int = Field(
-        default=16,
-        title="Worker empty queue attempt limit berfore queue rebind",
-    )
-
-    worker_empty_pause: float = Field(
-        default=0.1,
-        title="Worker pause in seconds on empty queue",
-    )
-
-
-settings = ShardedQueueSettings()
 
 
 class Route(NamedTuple):
@@ -129,48 +76,13 @@ class Tube(NamedTuple):
             await instance.stop()
 
 
-class Serializer(Protocol[T]):
-    def serialize(self, request: T) -> str:
-        raise NotImplementedError
-
-    def unserialize(self, cls: type[T], source: str) -> T:
-        raise NotImplementedError
-
-
-class JsonTupleSerializer(Serializer):
-    def serialize(self, request: T) -> str:
-        if isinstance(request, Sequence):
-            values = [k for k in request]
-        else:
-            values = list(request.__dict__)
-
-        return dumps(values)
-
-    def unserialize(self, cls: type[T], source: str) -> T:
-        return cls(*loads(source))
-
-
-class Storage(Protocol):
-    async def append(self, tube: str, *msgs: str) -> int:
-        raise NotImplementedError
-
-    async def length(self, tube: str) -> int:
-        raise NotImplementedError
-
-    async def pipes(self) -> list[str]:
-        raise NotImplementedError
-
-    async def pop(self, tube: str, max: int) -> list[str]:
-        raise NotImplementedError
-
-    async def range(self, tube: str, max: int) -> list[str]:
-        raise NotImplementedError
-
-
 @dataclass
 class Queue(Generic[T]):
-    storage: Storage
-    serializer: Serializer = JsonTupleSerializer()
+    def __init__(
+        self, storage: Storage, serializer: Optional[Serializer] = None
+    ):
+        self.storage = storage
+        self.serializer = serializer or JsonTupleSerializer()
 
     async def register(self, handler: type[Handler], *requests: T) -> None:
         routes = await handler.route(*requests)
@@ -185,14 +97,6 @@ class Queue(Generic[T]):
                 for (request, tube) in tubes
                 if tube.pipe == pipe
             ])
-
-
-class Lock(Protocol):
-    async def acquire(self, tube: str) -> bool:
-        raise NotImplementedError
-
-    async def release(self, tube: str) -> None:
-        raise NotImplementedError
 
 
 @dataclass
@@ -281,90 +185,5 @@ class Worker:
                     await sleep(settings.worker_empty_pause)
 
         await self.lock.release(tube.pipe)
+
         return processed_counter
-
-
-class RuntimeLock(Lock):
-    def __init__(self) -> None:
-        self.storage: dict[str, bool] = {}
-
-    async def acquire(self, pipe: str) -> bool:
-        if pipe in self.storage:
-            return False
-        self.storage[pipe] = True
-        return True
-
-    async def release(self, pipe: str) -> None:
-        del self.storage[pipe]
-
-
-class RuntimeStorage(Storage):
-    data: dict[str, List[str]]
-
-    def __init__(self) -> None:
-        self.data = {}
-
-    async def append(self, tube: str, *msgs: str) -> int:
-        if tube not in self.data:
-            self.data[tube] = list(msgs)
-        else:
-            self.data[tube].extend(list(msgs))
-
-        return len(self.data[tube])
-
-    async def length(self, tube: str) -> int:
-        return len(self.data[tube]) if tube in self.data else 0
-
-    async def pop(self, tube: str, max: int) -> list[str]:
-        res = await self.range(tube, max)
-        if len(res):
-            self.data[tube] = self.data[tube][len(res):]
-        return res
-
-    async def pipes(self) -> list[str]:
-        return list(self.data.keys())
-
-    async def range(self, tube: str, max: int) -> list[str]:
-        return self.data[tube][0:max] if tube in self.data else []
-
-
-class RedisLock(Lock):
-    def __init__(self, redis: Redis) -> None:
-        self.redis = redis
-
-    async def acquire(self, tube: str) -> bool:
-        return None is not await self.redis.set(
-            name=settings.lock_prefix + tube,
-            ex=settings.lock_timeout,
-            nx=True,
-            value=1,
-        )
-
-    async def release(self, tube: str) -> None:
-        await self.redis.delete(settings.lock_prefix + tube)
-
-
-class RedisStorage(Storage):
-    def __init__(self, redis: Redis) -> None:
-        self.redis = redis
-
-    async def append(self, tube: str, *msgs: str) -> int:
-        return await self.redis.rpush(self.key(tube), *msgs)
-
-    def key(self, tube):
-        return settings.tube_prefix + tube
-
-    async def length(self, tube: str) -> int:
-        return await self.redis.llen(self.key(tube))
-
-    async def pipes(self) -> list[str]:
-        return [
-            key[len(settings.tube_prefix):]
-            for key in await self.redis.keys(self.key('*'))
-        ]
-
-    async def pop(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lpop(self.key(tube), max) or []
-
-    async def range(self, tube: str, max: int) -> list[str]:
-        return await self.redis.lrange(self.key(tube), 0, max-1) or []
