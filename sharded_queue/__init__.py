@@ -225,7 +225,8 @@ class BacklogRequest(NamedTuple):
 class BacklogHandler(Handler):
     queue: Queue
 
-    def get_delayed_timestamp(self, delay: float | int | timedelta) -> float:
+    @classmethod
+    def get_delayed_timestamp(cls, delay: float | int | timedelta) -> float:
         now: datetime = datetime.now()
         if isinstance(delay, timedelta):
             now = now + delay
