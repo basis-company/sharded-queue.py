@@ -152,6 +152,11 @@ class ParseEventHandler(Handler):
         run any code when queue is empty and worker stops processing thread
         '''
 ```
+## Delay
+You can use built-in task backlog to delay handler call
+```py
+await queue.register(Housekeep, Room(324), delay=timedelta(minutes=15))
+```
 ## Deduplication
 There is an optional if_not_exists flag. If it is set, request will be registered only if not persent in a queue
 ```py
@@ -160,6 +165,8 @@ await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 ```
 ## Advanced queue configuration
 You can configure sharded queue using env
+- `QUEUE_BACKLOG_RETRY_DELAY = 1`\
+Backlog retry delay
 - `QUEUE_DEFAULT_PRIORITY = 0`\
 Default queue priority
 - `QUEUE_DEFAULT_THREAD = 0`\

@@ -1,9 +1,10 @@
 from asyncio import sleep
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from functools import cache
 from importlib import import_module
-from typing import (AsyncGenerator, Generic, NamedTuple, Optional, Self,
+from typing import (Any, AsyncGenerator, Generic, NamedTuple, Optional, Self,
                     TypeVar, get_type_hints)
 
 from sharded_queue.drivers import JsonTupleSerializer
@@ -85,13 +86,29 @@ class Queue(Generic[T]):
         self.serializer = serializer or JsonTupleSerializer()
 
     async def register(
-        self, handler: type[Handler], *requests: T, if_not_exists: bool = False
+        self, handler: type[Handler], *requests: T,
+        delay: Optional[float | int | timedelta] = None,
+        if_not_exists: bool = False
     ) -> None:
         routes = await handler.route(*requests)
-        tubes: list[tuple[T, Tube]] = [
+        tubes: list[tuple[Any, Tube]] = [
             (requests[n], Tube(handler, routes[n]))
             for n in range(len(routes))
         ]
+
+        if delay:
+            timestamp = BacklogHandler.get_delayed_timestamp(delay)
+            tubes = [
+                (
+                    BacklogRequest(timestamp, pipe, values),
+                    Tube(BacklogHandler, Route()),
+                )
+                for (pipe, values)
+                in [
+                    (tube.pipe, self.serializer.get_values(request))
+                    for (request, tube) in tubes
+                ]
+            ]
 
         for pipe in set([tube.pipe for (_, tube) in tubes]):
             await self.storage.append(pipe, *[
@@ -166,6 +183,9 @@ class Worker:
             ]
 
         async with tube.context() as instance:
+            if isinstance(instance, BacklogHandler):
+                instance.queue = self.queue
+
             while limit is None or limit > processed_counter:
                 page_size = self.page_size(limit)
                 processed = False
@@ -194,3 +214,54 @@ class Worker:
         await self.lock.release(tube.pipe)
 
         return processed_counter
+
+
+class BacklogRequest(NamedTuple):
+    timestamp: float
+    pipe: str
+    msg: list
+
+
+class BacklogHandler(Handler):
+    queue: Queue
+
+    def get_delayed_timestamp(self, delay: float | int | timedelta) -> float:
+        now: datetime = datetime.now()
+        if isinstance(delay, timedelta):
+            now = now + delay
+
+        timestamp: float = now.timestamp()
+        if not isinstance(delay, timedelta):
+            timestamp = delay = delay
+
+        return timestamp
+
+    async def handle(self, *requests: BacklogRequest) -> None:
+        now: float = datetime.now().timestamp()
+        backlog = [
+            request for request in requests
+            if request.timestamp > now
+        ]
+
+        if len(backlog):
+            await self.queue.register(BacklogHandler, *backlog)
+
+        todo: list[tuple[str, list]] = [
+            (request.pipe, request.msg)
+            for request in requests
+            if request.timestamp <= now
+        ]
+
+        for pipe in set([pipe for (pipe, _) in todo]):
+            await self.queue.storage.append(pipe, *[
+                msg for msg in
+                [
+                    self.queue.serializer.serialize(request)
+                    for (candidate_pipe, request) in todo
+                    if candidate_pipe == pipe
+                ]
+                if not await self.queue.storage.contains(pipe, msg)
+            ])
+
+        if len(backlog):
+            await sleep(settings.backlog_retry_delay)

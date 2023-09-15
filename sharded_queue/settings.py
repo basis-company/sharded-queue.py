@@ -3,6 +3,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ShardedQueueSettings(BaseSettings):
+    backlog_retry_delay: float = Field(
+        default=1,
+        title='Backlog retry delay'
+    )
     default_priority: int = Field(
         default='0',
         title='Default queue priority'
