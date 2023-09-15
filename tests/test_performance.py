@@ -54,7 +54,7 @@ async def test_performance() -> None:
                 await worker.loop(requests-1)
 
             for thread in range(1, threads):
-                pipe = Tube(DummyRequest, Route(thread)).pipe
+                pipe = Tube(DummyHandler, Route(thread)).pipe
                 assert await queue.storage.length(pipe) == 0
 
             await queue.register(
@@ -65,7 +65,7 @@ async def test_performance() -> None:
             async with measure('worker threads'):
                 await gather(*[
                     Worker(RuntimeLock(), queue).loop(
-                        (requests-1/threads) - 1
+                        int(requests-1/threads) - 1
                     )
                 ])
 
