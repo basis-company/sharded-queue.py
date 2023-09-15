@@ -91,32 +91,32 @@ class Queue(Generic[T]):
         if_not_exists: bool = False
     ) -> None:
         routes = await handler.route(*requests)
-        tubes: list[tuple[Any, Tube]] = [
-            (requests[n], Tube(handler, routes[n]))
+        pipe_messages: list[tuple[str, Any]] = [
+            (Tube(handler, routes[n]).pipe, requests[n])
             for n in range(len(routes))
         ]
 
         if delay:
             timestamp = BacklogHandler.get_delayed_timestamp(delay)
-            tubes = [
+            pipe_messages = [
                 (
+                    Tube(BacklogHandler, Route()).pipe,
                     BacklogRequest(timestamp, pipe, values),
-                    Tube(BacklogHandler, Route()),
                 )
                 for (pipe, values)
                 in [
-                    (tube.pipe, self.serializer.get_values(request))
-                    for (request, tube) in tubes
+                    (pipe, self.serializer.get_values(request))
+                    for (pipe, request) in pipe_messages
                 ]
             ]
 
-        for pipe in set([tube.pipe for (_, tube) in tubes]):
+        for pipe in set([pipe for (pipe, _) in pipe_messages]):
             await self.storage.append(pipe, *[
                 msg for msg in
                 [
                     self.serializer.serialize(request)
-                    for (request, tube) in tubes
-                    if tube.pipe == pipe
+                    for (pipe_candidate, request) in pipe_messages
+                    if pipe_candidate == pipe
                 ]
                 if not if_not_exists
                 or not await self.storage.contains(pipe, msg)
