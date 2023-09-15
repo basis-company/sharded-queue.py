@@ -16,6 +16,11 @@ class BenchmarkSettings(BaseSettings):
     requests: int = 100_000
 
 
+class PerformaceMatrix:
+    requests: list[int] = [100, 10_000]
+    threads: list[int] = [1, 2, 5, 10, 20, 50]
+
+
 benchmark = BenchmarkSettings()
 
 
@@ -40,9 +45,9 @@ async def test_performance() -> None:
     settings.worker_empty_pause = 0
     queue: Queue = Queue(RuntimeStorage())
     worker: Worker = Worker(RuntimeLock(), queue)
-    for requests in [1000, 10_000, 100_000]:
+    for requests in PerformaceMatrix.requests:
         benchmark.requests = requests
-        for threads in [1, 5, 10, 25]:
+        for threads in PerformaceMatrix.threads:
             benchmark.threads = threads
             print(f'test {requests} requests using {threads} thread(s)')
             async with measure('registration'):
