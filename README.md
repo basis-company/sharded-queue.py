@@ -152,16 +152,17 @@ class ParseEventHandler(Handler):
         run any code when queue is empty and worker stops processing thread
         '''
 ```
-## Delay
-You can use built-in task backlog to delay handler call
-```py
-await queue.register(Housekeep, Room(324), delay=timedelta(minutes=15))
-```
 ## Deduplication
 There is an optional if_not_exists flag. If it is set, request will be registered only if not persent in a queue
 ```py
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
+```
+## Delay
+You can use built-in task backlog to delay handler call
+```py
+await queue.register(Housekeep, Room(402), delay=5)  # numeric means seconds
+await queue.register(Housekeep, Room(324), delay=timedelta(minutes=15))
 ```
 ## Performance
 Performance dependends on many factors, we can only measure clean library overhead with in-memory storages. You can run performance on your hardware with `pytest -s`, with this option performance test will print result for different cases. Perfomance test on intel i5-4670K, Ubuntu 23.04 LTS using Python 3.11.4 gives us about `200_000` rps for batch request registration with sharding and about `600_000` requests for request handling in concurrent mode.
