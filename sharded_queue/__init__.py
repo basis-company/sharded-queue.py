@@ -228,10 +228,16 @@ class Worker:
                         break
                     await sleep(settings.worker_empty_pause)
 
-        if tube.handler is DeferredHandler:
-            await self.lock.ttl(tube.pipe, settings.deferred_retry_delay)
-        else:
-            await self.lock.release(tube.pipe)
+                if tube.handler is DeferredHandler:
+                    await self.lock.ttl(
+                        key=tube.pipe,
+                        ttl=settings.deferred_retry_delay,
+                    )
+                    return processed_counter
+                else:
+                    await self.lock.ttl(tube.pipe, settings.lock_timeout)
+
+        await self.lock.release(tube.pipe)
 
         return processed_counter
 

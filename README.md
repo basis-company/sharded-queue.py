@@ -202,9 +202,10 @@ Worker pause in seconds on empty queue
 
 You can import and change settings manually
 ```py
-from sharded_queue.settings import settings
 from sharded_queue import Queue, Worker
-from sharded_queue.drivers import RuntimeLock RuntimeStorage
+from sharded_queue.drivers import RuntimeLock, RuntimeStorage
+from sharded_queue.settings import settings
+
 settings.worker_acquire_delay = 5
 settings.worker_batch_size = 64
 
