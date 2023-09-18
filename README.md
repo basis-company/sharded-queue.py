@@ -158,8 +158,8 @@ There is an optional if_not_exists flag. If it is set, request will be registere
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 ```
-## Delay
-You can use built-in task backlog to delay handler call
+## Deffered tasks
+You can use built-in deffered task handler to delay call
 ```py
 await queue.register(Housekeep, Room(402), delay=5)  # numeric means seconds
 await queue.register(Housekeep, Room(324), delay=timedelta(minutes=15))
@@ -169,12 +169,12 @@ Performance dependends on many factors, we can only measure clean library overhe
 
 ## Advanced queue configuration
 You can configure sharded queue using env
-- `QUEUE_BACKLOG_RETRY_DELAY = 1`\
-Backlog retry delay
 - `QUEUE_DEFAULT_PRIORITY = 0`\
 Default queue priority
 - `QUEUE_DEFAULT_THREAD = 0`\
 Default queue thread
+- `QUEUE_DEFFERED_RETRY_DELAY = 1`\
+Deffered tasks retry delay
 - `QUEUE_LOCK_PREFIX = 'lock_'`\
 Lock key prefix
 - `QUEUE_LOCK_TIMEOUT = 24 * 60 * 60`\

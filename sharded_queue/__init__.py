@@ -97,11 +97,11 @@ class Queue(Generic[T]):
         ]
 
         if delay:
-            timestamp = BacklogHandler.get_delayed_timestamp(delay)
+            timestamp = DefferedRequest.calculate_timestamp(delay)
             pipe_messages = [
                 (
-                    Tube(BacklogHandler, Route()).pipe,
-                    BacklogRequest(timestamp, pipe, values),
+                    Tube(DefferedHandler, Route()).pipe,
+                    DefferedRequest(timestamp, pipe, values),
                 )
                 for (pipe, values)
                 in [
@@ -183,7 +183,7 @@ class Worker:
             ]
 
         async with tube.context() as instance:
-            if isinstance(instance, BacklogHandler):
+            if isinstance(instance, DefferedHandler):
                 instance.queue = self.queue
 
             while limit is None or limit > processed_counter:
@@ -216,17 +216,13 @@ class Worker:
         return processed_counter
 
 
-class BacklogRequest(NamedTuple):
+class DefferedRequest(NamedTuple):
     timestamp: float
     pipe: str
     msg: list
 
-
-class BacklogHandler(Handler):
-    queue: Queue
-
     @classmethod
-    def get_delayed_timestamp(cls, delay: float | int | timedelta) -> float:
+    def calculate_timestamp(cls, delay: float | int | timedelta) -> float:
         now: datetime = datetime.now()
         if isinstance(delay, timedelta):
             now = now + delay
@@ -237,15 +233,19 @@ class BacklogHandler(Handler):
 
         return timestamp
 
-    async def handle(self, *requests: BacklogRequest) -> None:
+
+class DefferedHandler(Handler):
+    queue: Queue
+
+    async def handle(self, *requests: DefferedRequest) -> None:
         now: float = datetime.now().timestamp()
-        backlog = [
+        pending: list[DefferedRequest] = [
             request for request in requests
             if request.timestamp > now
         ]
 
-        if len(backlog):
-            await self.queue.register(BacklogHandler, *backlog)
+        if len(pending):
+            await self.queue.register(DefferedHandler, *pending)
 
         todo: list[tuple[str, list]] = [
             (request.pipe, request.msg)
@@ -264,5 +264,5 @@ class BacklogHandler(Handler):
                 if not await self.queue.storage.contains(pipe, msg)
             ])
 
-        if len(backlog):
-            await sleep(settings.backlog_retry_delay)
+        if len(pending) and not len(todo):
+            await sleep(settings.deffered_retry_delay)
