@@ -13,25 +13,27 @@ class ActionMessage(NamedTuple):
 
 
 class Action(NamedTuple):
-    id: str
+    id: int
 
 
 class BaseAction(Handler):
     async def handle(self, *requests: ActionMessage) -> None:
-        return gather(*[
+        await gather(*[
             self.perform(Action(request.id))
             for request in requests
         ])
-    ...
+
+    async def perform(self, action: Action) -> None:
+        ...
 
 
 class CreateUserAction(BaseAction):
-    async def perform(self, action: Action):
+    async def perform(self, action: Action) -> None:
         ...
 
 
 class UpdateUserAction(BaseAction):
-    async def perform(self, action: Action):
+    async def perform(self, action: Action) -> None:
         ...
 
 
