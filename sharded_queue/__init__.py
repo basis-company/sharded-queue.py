@@ -88,7 +88,8 @@ class Queue(Generic[T]):
     async def register(
         self, handler: type[Handler], *requests: T,
         defer: Optional[float | int | timedelta] = None,
-        if_not_exists: bool = False
+        if_not_exists: bool = False,
+        recurrent: Optional[float | int | timedelta] = None,
     ) -> None:
         routes = await handler.route(*requests)
         pipe_messages: list[tuple[str, Any]] = [
@@ -96,19 +97,17 @@ class Queue(Generic[T]):
             for n in range(len(routes))
         ]
 
+        if recurrent:
+            if_not_exists = True
+            pipe_messages = RecurrentHandler.transform(
+                pipe_messages, recurrent, self.serializer
+            )
+
         if defer:
-            timestamp = DeferredRequest.calculate_timestamp(defer)
-            pipe_messages = [
-                (
-                    Tube(DeferredHandler, Route()).pipe,
-                    DeferredRequest(timestamp, pipe, values),
-                )
-                for (pipe, values)
-                in [
-                    (pipe, self.serializer.get_values(request))
-                    for (pipe, request) in pipe_messages
-                ]
-            ]
+            if_not_exists = True
+            pipe_messages = DeferredHandler.transform(
+                pipe_messages, defer, self.serializer
+            )
 
         for pipe in set([pipe for (pipe, _) in pipe_messages]):
             await self.storage.append(pipe, *[
@@ -128,13 +127,17 @@ class Worker:
     lock: Lock
     queue: Queue
 
-    async def acquire_tube(self) -> Tube:
+    async def acquire_tube(
+        self, handler: Optional[type[Handler]] = None
+    ) -> Tube:
         all_pipes = False
         while True:
             for pipe in await self.queue.storage.pipes():
                 if not await self.queue.storage.length(pipe):
                     continue
                 tube: Tube = Tube.parse_pipe(pipe)
+                if handler and tube.handler is not handler:
+                    continue
                 if tube.handler.priorities:
                     if tube.route.priority != tube.handler.priorities[0]:
                         if not all_pipes:
@@ -161,10 +164,14 @@ class Worker:
 
         return min(limit, settings.worker_batch_size)
 
-    async def loop(self, limit: Optional[int] = None) -> None:
+    async def loop(
+        self,
+        limit: Optional[int] = None,
+        handler: Optional[type[Handler]] = None,
+    ) -> None:
         processed = 0
         while True and limit is None or limit > processed:
-            tube = await self.acquire_tube()
+            tube = await self.acquire_tube(handler)
             processed = processed + await self.process(tube, limit)
 
     async def process(self, tube: Tube, limit: Optional[int] = None) -> int:
@@ -183,11 +190,14 @@ class Worker:
             ]
 
         async with tube.context() as instance:
-            if isinstance(instance, DeferredHandler):
+            if isinstance(instance, DeferredHandler | RecurrentHandler):
                 instance.queue = self.queue
 
             while limit is None or limit > processed_counter:
-                page_size = self.page_size(limit)
+                if tube.handler is RecurrentHandler:
+                    page_size = settings.recurrent_tasks_limit
+                else:
+                    page_size = self.page_size(limit)
                 processed = False
                 for pipe in pipes:
                     msgs = await storage.range(pipe, page_size)
@@ -197,6 +207,13 @@ class Worker:
                     await instance.handle(*[
                         deserialize(cls, msg) for msg in msgs
                     ])
+
+                    if tube.handler is RecurrentHandler:
+                        await self.lock.ttl(
+                            key=tube.pipe,
+                            ttl=settings.recurrent_check_interval
+                        )
+                        return len(msgs)
 
                     await storage.pop(pipe, len(msgs))
 
@@ -211,7 +228,10 @@ class Worker:
                         break
                     await sleep(settings.worker_empty_pause)
 
-        await self.lock.release(tube.pipe)
+        if tube.handler is DeferredHandler:
+            await self.lock.ttl(tube.pipe, settings.deferred_retry_delay)
+        else:
+            await self.lock.release(tube.pipe)
 
         return processed_counter
 
@@ -266,3 +286,87 @@ class DeferredHandler(Handler):
 
         if len(pending) and not len(todo):
             await sleep(settings.deferred_retry_delay)
+
+    @classmethod
+    def transform(
+        cls,
+        pipe_messages: list[tuple[str, T]],
+        defer: float | int | timedelta,
+        serializer: Serializer,
+    ) -> list[tuple[str, DeferredRequest]]:
+        timestamp = DeferredRequest.calculate_timestamp(defer)
+        return [
+            (
+                Tube(DeferredHandler, Route()).pipe,
+                DeferredRequest(timestamp, pipe, values),
+            )
+            for (pipe, values)
+            in [
+                (pipe, serializer.get_values(request))
+                for (pipe, request) in pipe_messages
+            ]
+        ]
+
+
+class RecurrentRequest(NamedTuple):
+    interval: float
+    pipe: str
+    msg: list
+
+    @classmethod
+    def get_interval(cls, interval: int | float | timedelta) -> float:
+        if isinstance(interval, timedelta):
+            return float(interval.seconds)
+
+        return float(interval)
+
+
+class RecurrentHandler(Handler):
+    queue: Queue
+
+    async def handle(self, *requests: RecurrentRequest) -> None:
+        deferred_pipe: str = Tube(DeferredHandler, Route()).pipe
+        deferred_requests: list[tuple[str, str]] = [
+            (request.pipe, request.msg)
+            for request in [
+                self.queue.serializer.deserialize(DeferredRequest, msg)
+                for msg in await self.queue.storage.range(
+                    deferred_pipe, settings.recurrent_tasks_limit
+                )
+            ]
+        ]
+
+        todo: list[DeferredRequest] = [
+            DeferredRequest(
+                DeferredRequest.calculate_timestamp(request.interval),
+                request.pipe,
+                request.msg,
+            )
+            for request in requests
+            if (request.pipe, request.msg) not in deferred_requests
+        ]
+
+        if len(todo):
+            await self.queue.register(
+                DeferredHandler, *todo, if_not_exists=True
+            )
+
+    @classmethod
+    def transform(
+        cls,
+        pipe_messages: list[tuple[str, T]],
+        recurrent: float | int | timedelta,
+        serializer: Serializer,
+    ) -> list[tuple[str, RecurrentRequest]]:
+        interval: float = RecurrentRequest.get_interval(recurrent)
+        return [
+            (
+                Tube(RecurrentHandler, Route()).pipe,
+                RecurrentRequest(interval, pipe, values)
+            )
+            for (pipe, values)
+            in [
+                (pipe, serializer.get_values(request))
+                for (pipe, request) in pipe_messages
+            ]
+        ]

@@ -158,11 +158,17 @@ There is an optional if_not_exists flag. If it is set, request will be registere
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 await queue.register(SycBucket, Bucket(7756527), if_not_exists=True)
 ```
-## Deferred tasks
-You can use built-in deferred task handler to defer call
+## Deferred handlers
+You can use built-in deferred request handler to defer call
 ```py
 await queue.register(Housekeep, Room(402), defer=5)  # numeric means seconds
 await queue.register(Housekeep, Room(324), defer=timedelta(minutes=15))
+```
+
+## Recurrent handlers
+You can use built-in recurrent request handler for regular request registration
+```py
+await queue.register(BalanceCheck, Company('basis'), recurrent=timedelta(hours=1))
 ```
 ## Performance
 Performance dependends on many factors, we can only measure clean library overhead with in-memory storages. You can run performance on your hardware with `pytest -s`, with this option performance test will print result for different cases. Perfomance test on intel i5-4670K, Ubuntu 23.04 LTS using Python 3.11.4 gives us about `200_000` rps for batch request registration with sharding and about `600_000` requests for request handling in concurrent mode.
@@ -179,6 +185,10 @@ Deferred tasks retry delay
 Lock key prefix
 - `QUEUE_LOCK_TIMEOUT = 24 * 60 * 60`\
 Lock key ttl
+- `QUEUE_RECURRENT_CHECK_INTERVAL = 30`\
+Recurrent interval check in seconds
+- `QUEUE_RECURRENT_TASKS_LIMIT = 1024`\
+Recurrent tasks limit count
 - `QUEUE_TUBE_PREFIX = 'tube_'`\
 Default queue prefix
 - `QUEUE_WORKER_ACQUIRE_DELAY = 1`\

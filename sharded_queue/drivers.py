@@ -26,14 +26,23 @@ class RuntimeLock(Lock):
     def __init__(self) -> None:
         self.storage: dict[str, bool] = {}
 
-    async def acquire(self, pipe: str) -> bool:
-        if pipe in self.storage:
+    async def acquire(self, key: str) -> bool:
+        if key in self.storage:
             return False
-        self.storage[pipe] = True
+        self.storage[key] = True
         return True
 
-    async def release(self, pipe: str) -> None:
-        del self.storage[pipe]
+    async def exists(self, key: str) -> bool:
+        return key in self.storage
+
+    async def release(self, key: str) -> None:
+        del self.storage[key]
+
+    async def ttl(self, key: str, ttl: int) -> bool:
+        if ttl == 0:
+            await self.release(key)
+            return True
+        return await self.exists(key)
 
 
 class RuntimeStorage(Storage):
@@ -73,16 +82,31 @@ class RedisLock(Lock):
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
 
-    async def acquire(self, tube: str) -> bool:
+    async def acquire(self, key: str) -> bool:
         return None is not await self.redis.set(
-            name=settings.lock_prefix + tube,
+            name=settings.lock_prefix + key,
             ex=settings.lock_timeout,
             nx=True,
             value=1,
         )
 
-    async def release(self, tube: str) -> None:
-        await self.redis.delete(settings.lock_prefix + tube)
+    async def exists(self, key: str) -> bool:
+        checker = await self.redis.exists(
+            settings.lock_prefix + key
+        )
+        return bool(checker)
+
+    async def release(self, key: str) -> None:
+        await self.redis.delete(settings.lock_prefix + key)
+
+    async def ttl(self, key: str, ttl: int) -> bool:
+        setter = await self.redis.set(
+            settings.lock_prefix + key,
+            value=key,
+            ex=ttl,
+            xx=True
+        )
+        return bool(setter)
 
 
 class RedisStorage(Storage):

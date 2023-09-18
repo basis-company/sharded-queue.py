@@ -13,7 +13,7 @@ class ShardedQueueSettings(BaseSettings):
         title='Default queue thread'
     )
 
-    deferred_retry_delay: float = Field(
+    deferred_retry_delay: int = Field(
         default=1,
         title='Defereed tasks retry delay'
     )
@@ -29,6 +29,16 @@ class ShardedQueueSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(env_prefix='queue_')
+
+    recurrent_check_interval: int = Field(
+        default=30,
+        title='Recurrent interval check in seconds'
+    )
+
+    recurrent_tasks_limit: int = Field(
+        default=1024,
+        title='Recurrent tasks limit count'
+    )
 
     tube_prefix: str = Field(
         default="tube_",

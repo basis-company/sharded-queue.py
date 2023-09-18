@@ -7,6 +7,7 @@ from pytest import mark
 from sharded_queue import DeferredHandler, Handler, Queue, Route, Tube, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 from sharded_queue.protocols import Storage
+from sharded_queue.settings import settings
 
 
 class BucketRequest(NamedTuple):
@@ -30,6 +31,7 @@ async def test_deferred() -> None:
 
     deferred_pipe: str = Tube(DeferredHandler, Route()).pipe
     drop_pipe: str = Tube(DropBucket, Route()).pipe
+    settings.deferred_retry_delay = 0
 
     assert await queue.storage.length(drop_pipe) == 0
     assert await queue.storage.length(deferred_pipe) == 1

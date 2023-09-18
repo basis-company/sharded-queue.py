@@ -20,9 +20,14 @@ async def test_redis_storage() -> None:
 
 async def runner(lock: Lock):
     assert await lock.acquire('tester')
+    assert await lock.exists('tester')
     assert not await lock.acquire('tester')
+    assert await lock.exists('tester')
+    assert await lock.ttl('tester', 1)
 
     await lock.release('tester')
+    assert not await lock.exists('tester')
+    assert not await lock.ttl('tester', 1)
 
     assert await lock.acquire('tester')
     await lock.release('tester')
