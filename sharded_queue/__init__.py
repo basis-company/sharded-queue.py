@@ -87,7 +87,7 @@ class Queue(Generic[T]):
 
     async def register(
         self, handler: type[Handler], *requests: T,
-        delay: Optional[float | int | timedelta] = None,
+        defer: Optional[float | int | timedelta] = None,
         if_not_exists: bool = False
     ) -> None:
         routes = await handler.route(*requests)
@@ -96,12 +96,12 @@ class Queue(Generic[T]):
             for n in range(len(routes))
         ]
 
-        if delay:
-            timestamp = DefferedRequest.calculate_timestamp(delay)
+        if defer:
+            timestamp = DeferredRequest.calculate_timestamp(defer)
             pipe_messages = [
                 (
-                    Tube(DefferedHandler, Route()).pipe,
-                    DefferedRequest(timestamp, pipe, values),
+                    Tube(DeferredHandler, Route()).pipe,
+                    DeferredRequest(timestamp, pipe, values),
                 )
                 for (pipe, values)
                 in [
@@ -183,7 +183,7 @@ class Worker:
             ]
 
         async with tube.context() as instance:
-            if isinstance(instance, DefferedHandler):
+            if isinstance(instance, DeferredHandler):
                 instance.queue = self.queue
 
             while limit is None or limit > processed_counter:
@@ -216,36 +216,36 @@ class Worker:
         return processed_counter
 
 
-class DefferedRequest(NamedTuple):
+class DeferredRequest(NamedTuple):
     timestamp: float
     pipe: str
     msg: list
 
     @classmethod
-    def calculate_timestamp(cls, delay: float | int | timedelta) -> float:
+    def calculate_timestamp(cls, delta: float | int | timedelta) -> float:
         now: datetime = datetime.now()
-        if isinstance(delay, timedelta):
-            now = now + delay
+        if isinstance(delta, timedelta):
+            now = now + delta
 
         timestamp: float = now.timestamp()
-        if not isinstance(delay, timedelta):
-            timestamp = delay = delay
+        if not isinstance(delta, timedelta):
+            timestamp = delta = delta
 
         return timestamp
 
 
-class DefferedHandler(Handler):
+class DeferredHandler(Handler):
     queue: Queue
 
-    async def handle(self, *requests: DefferedRequest) -> None:
+    async def handle(self, *requests: DeferredRequest) -> None:
         now: float = datetime.now().timestamp()
-        pending: list[DefferedRequest] = [
+        pending: list[DeferredRequest] = [
             request for request in requests
             if request.timestamp > now
         ]
 
         if len(pending):
-            await self.queue.register(DefferedHandler, *pending)
+            await self.queue.register(DeferredHandler, *pending)
 
         todo: list[tuple[str, list]] = [
             (request.pipe, request.msg)
@@ -265,4 +265,4 @@ class DefferedHandler(Handler):
             ])
 
         if len(pending) and not len(todo):
-            await sleep(settings.deffered_retry_delay)
+            await sleep(settings.deferred_retry_delay)

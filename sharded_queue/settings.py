@@ -13,9 +13,9 @@ class ShardedQueueSettings(BaseSettings):
         title='Default queue thread'
     )
 
-    deffered_retry_delay: float = Field(
+    deferred_retry_delay: float = Field(
         default=1,
-        title='Deffered tasks retry delay'
+        title='Defereed tasks retry delay'
     )
 
     lock_prefix: str = Field(
