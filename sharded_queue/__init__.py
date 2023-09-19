@@ -110,7 +110,7 @@ class Queue(Generic[T]):
             )
 
         for pipe in set([pipe for (pipe, _) in pipe_messages]):
-            await self.storage.append(pipe, *[
+            msgs = [
                 msg for msg in
                 [
                     self.serializer.serialize(request)
@@ -119,7 +119,9 @@ class Queue(Generic[T]):
                 ]
                 if not if_not_exists
                 or not await self.storage.contains(pipe, msg)
-            ])
+            ]
+            if len(msgs):
+                await self.storage.append(pipe, *msgs)
 
 
 @dataclass
