@@ -1,10 +1,10 @@
-from asyncio import ensure_future, get_event_loop, sleep
+from asyncio import all_tasks, current_task, ensure_future, gather, get_event_loop, sleep
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cache, partial
 from importlib import import_module
-from signal import SIGTERM
+from signal import SIGKILL, SIGTERM
 from typing import (Any, AsyncGenerator, Generic, NamedTuple, Optional, Self,
                     TypeVar, get_type_hints)
 
@@ -179,11 +179,18 @@ class Worker:
         processed = 0
         while True and limit is None or limit > processed:
             tube = await self.acquire_tube(handler)
-            loop.add_signal_handler(SIGTERM, partial(
-                ensure_future, partial(self.lock.release, tube.pipe)
-            ))
+            loop.add_signal_handler(SIGTERM, partial(self.stop, tube.pipe))
             processed = processed + await self.process(tube, limit)
             loop.remove_signal_handler(SIGTERM)
+
+    def stop(self, pipe: str) -> None:
+        get_event_loop().create_task(self.shutdown_worker(pipe))
+
+    async def shutdown_worker(self, pipe: str) -> None:
+        await self.lock.release(pipe)
+        tasks = [task for task in all_tasks() if task is not current_task()]
+        [task.cancel() for task in tasks]
+        await gather(*tasks)
 
     async def process(self, tube: Tube, limit: Optional[int] = None) -> int:
         deserialize = self.queue.serializer.deserialize
