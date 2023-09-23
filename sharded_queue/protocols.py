@@ -1,6 +1,4 @@
-from typing import Any, Protocol, TypeVar
-
-T = TypeVar('T')
+from typing import Any, Protocol
 
 
 class Lock(Protocol):
@@ -10,10 +8,10 @@ class Lock(Protocol):
     async def ttl(self, key: str, ttl: int) -> bool: ...
 
 
-class Serializer(Protocol[T]):
+class Serializer(Protocol):
     def get_values(self, request) -> list[Any]: ...
-    def serialize(self, request: T) -> str: ...
-    def deserialize(self, cls: type[T], source: str) -> T: ...
+    def serialize(self, request: Any) -> str: ...
+    def deserialize(self, cls: type[Any], source: str) -> Any: ...
 
 
 class Storage(Protocol):

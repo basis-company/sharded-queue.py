@@ -1,12 +1,10 @@
 from json import dumps, loads
-from typing import Any, List, Sequence, TypeVar
+from typing import Any, List, Sequence
 
 from redis.asyncio import Redis
 
 from sharded_queue.protocols import Lock, Serializer, Storage
 from sharded_queue.settings import settings
-
-T = TypeVar('T')
 
 
 class JsonTupleSerializer(Serializer):
@@ -15,10 +13,10 @@ class JsonTupleSerializer(Serializer):
             return [k for k in request]
         return list(request.__dict__.values())
 
-    def serialize(self, request: T) -> str:
+    def serialize(self, request: Any) -> str:
         return dumps(self.get_values(request))
 
-    def deserialize(self, cls: type[T], source: str) -> T:
+    def deserialize(self, cls: type[Any], source: str) -> Any:
         values = loads(source)
         if hasattr(cls, 'model_fields'):
             return cls(**dict(zip(cls.model_fields, values)))
