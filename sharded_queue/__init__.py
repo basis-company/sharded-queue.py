@@ -285,7 +285,7 @@ class DeferredHandler(Handler):
         ]
 
         for pipe in set([pipe for (pipe, _) in todo]):
-            await self.queue.storage.append(pipe, *[
+            ready = [
                 msg for msg in
                 [
                     self.queue.serializer.serialize(request)
@@ -293,7 +293,10 @@ class DeferredHandler(Handler):
                     if candidate_pipe == pipe
                 ]
                 if not await self.queue.storage.contains(pipe, msg)
-            ])
+            ]
+
+            if len(ready):
+                await self.queue.storage.append(pipe, *ready)
 
         if len(pending) and not len(todo):
             await sleep(settings.deferred_retry_delay)
