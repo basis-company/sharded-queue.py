@@ -28,7 +28,10 @@ class Handler(Generic[T]):
 
     @classmethod
     def request_cls(cls) -> type[T]:
-        return list(get_type_hints(cls.handle).values())[0]
+        cls = list(get_type_hints(cls.handle).values())[0]
+        if cls is T:
+            raise NotImplementedError
+        return cls
 
     @classmethod
     async def route(cls, *requests: T) -> list[Route]:
@@ -41,7 +44,7 @@ class Handler(Generic[T]):
         pass
 
     async def handle(self, *requests: T) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     async def stop(self) -> None:
         pass
