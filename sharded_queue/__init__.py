@@ -28,10 +28,10 @@ class Handler(Generic[T]):
 
     @classmethod
     def request_cls(cls) -> type[T]:
-        cls = list(get_type_hints(cls.handle).values())[0]
-        if cls is T:
+        request_cls = list(get_type_hints(cls.handle).values())[0]
+        if isinstance(request_cls, TypeVar):
             raise NotImplementedError
-        return cls
+        return request_cls
 
     @classmethod
     async def route(cls, *requests: T) -> list[Route]:
