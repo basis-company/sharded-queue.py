@@ -31,7 +31,7 @@ class Handler(Generic[T]):
     def request_cls(cls) -> type[T]:
         request_cls = list(get_type_hints(cls.handle).values())[0]
         if isinstance(request_cls, TypeVar):
-            raise NotImplementedError
+            raise NotImplementedError(cls)
         return request_cls
 
     @classmethod
@@ -45,7 +45,7 @@ class Handler(Generic[T]):
         pass
 
     async def handle(self, *requests: T) -> None:
-        raise NotImplementedError
+        raise NotImplementedError(self.__class__)
 
     async def stop(self) -> None:
         pass
