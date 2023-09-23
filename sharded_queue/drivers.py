@@ -19,7 +19,11 @@ class JsonTupleSerializer(Serializer):
         return dumps(self.get_values(request))
 
     def deserialize(self, cls: type[T], source: str) -> T:
-        return cls(*loads(source))
+        values = loads(source)
+        if hasattr(cls, 'model_fields'):
+            return cls(**dict(zip(cls.model_fields, values)))
+
+        return cls(*values)
 
 
 class RuntimeLock(Lock):
