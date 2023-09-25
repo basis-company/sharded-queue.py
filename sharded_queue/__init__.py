@@ -138,7 +138,7 @@ class Worker:
         self, handler: Optional[type[Handler]] = None
     ) -> Tube:
         all_pipes = False
-        while True:
+        while get_event_loop().is_running():
             for pipe in await self.queue.storage.pipes():
                 if not await self.queue.storage.length(pipe):
                     continue
@@ -178,7 +178,9 @@ class Worker:
     ) -> None:
         get_event_loop().add_signal_handler(SIGTERM, self.housekeep)
         processed = 0
-        while True and limit is None or limit > processed:
+        while get_event_loop().is_running() and (
+            limit is None or limit > processed
+        ):
             tube = await self.acquire_tube(handler)
             self.pipe = tube.pipe
             processed = processed + await self.process(tube, limit)
@@ -209,7 +211,9 @@ class Worker:
             if isinstance(instance, DeferredHandler | RecurrentHandler):
                 instance.queue = self.queue
 
-            while limit is None or limit > processed_counter:
+            while get_event_loop().is_running() and (
+                limit is None or limit > processed_counter
+            ):
                 if tube.handler is RecurrentHandler:
                     page_size = settings.recurrent_tasks_limit
                 else:
