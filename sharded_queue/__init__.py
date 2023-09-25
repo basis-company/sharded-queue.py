@@ -233,9 +233,8 @@ class Worker:
                     ])
 
                     if tube.handler is RecurrentHandler:
-                        await self.lock.ttl(
-                            key=tube.pipe,
-                            ttl=settings.recurrent_check_interval
+                        await self.prolongate_lock(
+                            settings.recurrent_check_interval
                         )
                         return len(msgs)
 
@@ -253,17 +252,19 @@ class Worker:
                     await sleep(settings.worker_empty_pause)
 
                 if tube.handler is DeferredHandler:
-                    await self.lock.ttl(
-                        key=tube.pipe,
-                        ttl=settings.deferred_retry_delay,
-                    )
+                    await self.prolongate_lock(settings.deferred_retry_delay)
                     return processed_counter
                 else:
-                    await self.lock.ttl(tube.pipe, settings.lock_timeout)
+                    await self.prolongate_lock()
 
-        await self.lock.release(tube.pipe)
+        await self.lock.release(self.pipe)
 
         return processed_counter
+
+    async def prolongate_lock(self, ttl: Optional[int | timedelta] = None):
+        if ttl is None:
+            ttl = settings.lock_timeout
+        await self.lock.ttl(self.pipe, ttl)
 
 
 class DeferredRequest(NamedTuple):
