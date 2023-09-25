@@ -257,11 +257,14 @@ class Worker:
                 else:
                     await self.prolongate_lock()
 
-        await self.lock.release(self.pipe)
+        if self.pipe:
+            await self.lock.release(self.pipe)
 
         return processed_counter
 
-    async def prolongate_lock(self, ttl: Optional[int | timedelta] = None):
+    async def prolongate_lock(self, ttl: Optional[int] = None):
+        if not self.pipe:
+            raise RuntimeError('No active pipe')
         if ttl is None:
             ttl = settings.lock_timeout
         await self.lock.ttl(self.pipe, ttl)

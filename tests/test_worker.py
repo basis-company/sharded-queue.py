@@ -1,7 +1,7 @@
 from asyncio import get_event_loop, sleep
 from typing import NamedTuple
 
-from pytest import mark
+from pytest import mark, raises
 
 from sharded_queue import Handler, Queue, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
@@ -33,3 +33,11 @@ async def test_worker_pause() -> None:
     await queue.register(SignContract, SignContractRequest(2))
     await worker_task
     assert len(signed) == 2
+
+
+@mark.asyncio
+async def test_worker_prolongate_invalid_pipe() -> None:
+    queue: Queue = Queue(RuntimeStorage())
+    worker = Worker(RuntimeLock(), queue)
+    with raises(RuntimeError):
+        await worker.prolongate_lock()
