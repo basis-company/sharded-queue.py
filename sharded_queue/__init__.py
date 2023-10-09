@@ -1,8 +1,8 @@
-from asyncio import all_tasks, current_task, gather, get_event_loop, sleep
+from asyncio import get_event_loop, sleep
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from functools import cache, partial
+from functools import cache
 from importlib import import_module
 from signal import SIGTERM
 from typing import (Any, AsyncGenerator, Generic, NamedTuple, Optional, Self,
@@ -10,14 +10,14 @@ from typing import (Any, AsyncGenerator, Generic, NamedTuple, Optional, Self,
 
 from sharded_queue.drivers import JsonTupleSerializer
 from sharded_queue.protocols import Lock, Serializer, Storage
-from sharded_queue.settings import settings
+from sharded_queue.settings import WorkerSettings
 
 T = TypeVar('T')
 
 
 class Route(NamedTuple):
-    thread: int = settings.default_thread
-    priority: int = settings.default_priority
+    thread: int = 0
+    priority: int = 0
 
 
 class Handler(Generic[T]):
@@ -36,10 +36,7 @@ class Handler(Generic[T]):
 
     @classmethod
     async def route(cls, *requests: T) -> list[Route]:
-        return [
-            Route(settings.default_thread, settings.default_priority)
-            for _ in requests
-        ]
+        return [Route() for _ in requests]
 
     async def start(self) -> None:
         pass
@@ -84,7 +81,9 @@ class Tube(NamedTuple):
 @dataclass
 class Queue(Generic[T]):
     def __init__(
-        self, storage: Storage, serializer: Optional[Serializer] = None
+        self,
+        storage: Storage,
+        serializer: Optional[Serializer] = None,
     ):
         self.storage = storage
         self.serializer = serializer or JsonTupleSerializer()
@@ -133,6 +132,7 @@ class Worker:
     lock: Lock
     queue: Queue
     pipe: Optional[str] = None
+    settings: WorkerSettings = field(default_factory=WorkerSettings)
 
     async def acquire_tube(
         self, handler: Optional[type[Handler]] = None
@@ -161,7 +161,7 @@ class Worker:
                 return tube
 
             if all_pipes:
-                await sleep(settings.worker_acquire_delay)
+                await sleep(self.settings.acquire_delay)
             else:
                 all_pipes = True
 
@@ -169,9 +169,9 @@ class Worker:
 
     def page_size(self, limit: Optional[int] = None) -> int:
         if limit is None:
-            return settings.worker_batch_size
+            return self.settings.batch_size
 
-        return min(limit, settings.worker_batch_size)
+        return min(limit, self.settings.batch_size)
 
     async def loop(
         self,
@@ -213,13 +213,13 @@ class Worker:
 
         async with tube.context() as instance:
             if isinstance(instance, DeferredHandler | RecurrentHandler):
-                instance.queue = self.queue
+                instance.worker = self
 
             while get_event_loop().is_running() and (
                 limit is None or limit > processed_counter
             ):
                 if tube.handler is RecurrentHandler:
-                    page_size = settings.recurrent_tasks_limit
+                    page_size = self.settings.recurrent_tasks_limit
                 else:
                     page_size = self.page_size(limit)
                 processed = False
@@ -234,7 +234,7 @@ class Worker:
 
                     if tube.handler is RecurrentHandler:
                         await self.prolongate_lock(
-                            settings.recurrent_check_interval
+                            self.settings.recurrent_check_interval
                         )
                         return len(msgs)
 
@@ -247,12 +247,14 @@ class Worker:
 
                 if not processed:
                     empty_counter = empty_counter + 1
-                    if empty_counter >= settings.worker_empty_limit:
+                    if empty_counter >= self.settings.empty_limit:
                         break
-                    await sleep(settings.worker_empty_pause)
+                    await sleep(self.settings.empty_pause)
 
                 if tube.handler is DeferredHandler:
-                    await self.prolongate_lock(settings.deferred_retry_delay)
+                    await self.prolongate_lock(
+                        self.settings.deferred_retry_delay
+                    )
                     return processed_counter
                 else:
                     await self.prolongate_lock()
@@ -266,7 +268,7 @@ class Worker:
         if not self.pipe:
             raise RuntimeError('No active pipe')
         if ttl is None:
-            ttl = settings.lock_timeout
+            ttl = self.lock.settings.timeout
         await self.lock.ttl(self.pipe, ttl)
 
 
@@ -289,7 +291,7 @@ class DeferredRequest(NamedTuple):
 
 
 class DeferredHandler(Handler):
-    queue: Queue
+    worker: Worker
 
     async def handle(self, *requests: DeferredRequest) -> None:
         now: float = datetime.now().timestamp()
@@ -299,7 +301,7 @@ class DeferredHandler(Handler):
         ]
 
         if len(pending):
-            await self.queue.register(DeferredHandler, *pending)
+            await self.worker.queue.register(DeferredHandler, *pending)
 
         todo: list[tuple[str, list]] = [
             (request.pipe, request.msg)
@@ -311,18 +313,18 @@ class DeferredHandler(Handler):
             ready = [
                 msg for msg in
                 [
-                    self.queue.serializer.serialize(request)
+                    self.worker.queue.serializer.serialize(request)
                     for (candidate_pipe, request) in todo
                     if candidate_pipe == pipe
                 ]
-                if not await self.queue.storage.contains(pipe, msg)
+                if not await self.worker.queue.storage.contains(pipe, msg)
             ]
 
             if len(ready):
-                await self.queue.storage.append(pipe, *ready)
+                await self.worker.queue.storage.append(pipe, *ready)
 
         if len(pending) and not len(todo):
-            await sleep(settings.deferred_retry_delay)
+            await sleep(self.worker.settings.deferred_retry_delay)
 
     @classmethod
     def transform(
@@ -359,16 +361,16 @@ class RecurrentRequest(NamedTuple):
 
 
 class RecurrentHandler(Handler):
-    queue: Queue
+    worker: Worker
 
     async def handle(self, *requests: RecurrentRequest) -> None:
         deferred_pipe: str = Tube(DeferredHandler, Route()).pipe
         deferred_requests: list[tuple[str, str]] = [
             (request.pipe, request.msg)
             for request in [
-                self.queue.serializer.deserialize(DeferredRequest, msg)
-                for msg in await self.queue.storage.range(
-                    deferred_pipe, settings.recurrent_tasks_limit
+                self.worker.queue.serializer.deserialize(DeferredRequest, msg)
+                for msg in await self.worker.queue.storage.range(
+                    deferred_pipe, self.worker.settings.recurrent_tasks_limit
                 )
             ]
         ]
@@ -384,7 +386,7 @@ class RecurrentHandler(Handler):
         ]
 
         if len(todo):
-            await self.queue.register(
+            await self.worker.queue.register(
                 DeferredHandler, *todo, if_not_exists=True
             )
 

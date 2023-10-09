@@ -8,7 +8,6 @@ from pytest import mark
 
 from sharded_queue import Handler, Queue, Route, Tube, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
-from sharded_queue.settings import settings
 
 
 class BenchmarkSettings(BaseSettings):
@@ -40,11 +39,11 @@ class DummyHandler(Handler):
 @mark.asyncio
 async def test_performance() -> None:
     print('start benchmark')
-    settings.worker_batch_size = 512
-    settings.worker_empty_limit = 0
-    settings.worker_empty_pause = 0
     queue: Queue = Queue(RuntimeStorage())
     worker: Worker = Worker(RuntimeLock(), queue)
+    worker.settings.batch_size = 512
+    worker.settings.empty_limit = 0
+    worker.settings.empty_pause = 0
     for requests in PerformaceMatrix.requests:
         benchmark.requests = requests
         for threads in PerformaceMatrix.threads:
@@ -69,7 +68,7 @@ async def test_performance() -> None:
 
             async with measure('worker threads'):
                 await gather(*[
-                    Worker(RuntimeLock(), queue).loop(
+                    worker.loop(
                         int(requests-1/threads) - 1
                     )
                 ])

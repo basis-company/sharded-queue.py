@@ -6,7 +6,6 @@ from redis.asyncio import Redis
 from sharded_queue import Handler, Queue, Route, Tube, Worker
 from sharded_queue.drivers import RedisLock, RuntimeLock, RuntimeStorage
 from sharded_queue.protocols import Lock
-from sharded_queue.settings import settings
 
 
 class Request:
@@ -24,7 +23,7 @@ async def test_lock_prolongate() -> None:
     redis: Redis = Redis(decode_responses=True)
     await redis.flushall()
     worker: Worker = Worker(RedisLock(redis), queue)
-    pipe: str = settings.lock_prefix + Tube(TestHandler, Route()).pipe
+    pipe: str = worker.lock.settings.prefix + Tube(TestHandler, Route()).pipe
 
     async def register_task():
         ttl1 = await redis.ttl(pipe)

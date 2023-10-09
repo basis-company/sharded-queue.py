@@ -5,7 +5,6 @@ from pytest import mark
 
 from sharded_queue import Handler, Queue, Route, Tube, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
-from sharded_queue.settings import settings
 
 
 class ActionMessage(NamedTuple):
@@ -49,9 +48,9 @@ async def test_nested() -> None:
     assert await queue.storage.length(create_user_pipe) == 1
     assert await queue.storage.length(update_user_pipe) == 1
 
-    settings.worker_empty_pause = 0
-    await Worker(RuntimeLock(), queue).loop(2)
+    worker = Worker(RuntimeLock(), queue)
+    worker.settings.empty_pause = 0
+    await worker.loop(2)
 
     assert await queue.storage.length(create_user_pipe) == 0
     assert await queue.storage.length(update_user_pipe) == 0
-

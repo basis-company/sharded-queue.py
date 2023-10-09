@@ -8,7 +8,6 @@ from sharded_queue import (DeferredHandler, Handler, Queue, RecurrentHandler,
                            Route, Tube, Worker)
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 from sharded_queue.protocols import Lock, Storage
-from sharded_queue.settings import settings
 
 
 class CompanyRequest(NamedTuple):
@@ -26,8 +25,9 @@ async def test_recurrent() -> None:
     lock: Lock = RuntimeLock()
     queue: Queue = Queue(storage)
 
-    settings.deferred_retry_delay = 0
-    settings.recurrent_check_interval = 1
+    worker = Worker(lock, queue)
+    worker.settings.deferred_retry_delay = 0
+    worker.settings.recurrent_check_interval = 1
 
     deferred_pipe: str = Tube(DeferredHandler, Route()).pipe
     recurrent_pipe: str = Tube(RecurrentHandler, Route()).pipe
@@ -59,14 +59,14 @@ async def test_recurrent() -> None:
     await Worker(lock, queue).loop(1, handler=RecurrentHandler)
     assert await stats() == (1, 1, 0), 'no deffered duplicates'
 
-    await Worker(lock, queue).loop(1, handler=DeferredHandler)
+    await worker.loop(1, handler=DeferredHandler)
     assert await stats() == (0, 1, 1), 'deferred processed, validation added'
 
     await lock.release(recurrent_pipe)
-    await Worker(lock, queue).loop(1, handler=RecurrentHandler)
+    await worker.loop(1, handler=RecurrentHandler)
     assert await stats() == (1, 1, 1), 'deferred added'
 
     await sleep(0.01)
 
-    await Worker(lock, queue).loop(1, handler=DeferredHandler)
+    await worker.loop(1, handler=DeferredHandler)
     assert await stats() == (0, 1, 1), 'no validation duplicate'

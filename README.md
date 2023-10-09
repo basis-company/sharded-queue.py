@@ -127,10 +127,7 @@ class ParseEventHandler(Handler):
         '''
         override default single thread tube
         '''
-        return [
-            Route(settings.default_thread, settings.default_priority)
-            for request in requests
-        ]
+        return [Route(0, 0) for request in requests]
 
     async def start(self):
         '''
@@ -175,41 +172,37 @@ Performance dependends on many factors, we can only measure clean library overhe
 
 ## Advanced queue configuration
 You can configure sharded queue using env
-- `QUEUE_DEFAULT_PRIORITY = 0`\
-Default queue priority
-- `QUEUE_DEFAULT_THREAD = 0`\
-Default queue thread
-- `QUEUE_DEFERRED_RETRY_DELAY = 1`\
-Deferred tasks retry delay
 - `QUEUE_LOCK_PREFIX = 'lock_'`\
 Lock key prefix
 - `QUEUE_LOCK_TIMEOUT = 24 * 60 * 60`\
 Lock key ttl
-- `QUEUE_RECURRENT_CHECK_INTERVAL = 30`\
-Recurrent interval check in seconds
-- `QUEUE_RECURRENT_TASKS_LIMIT = 1024`\
-Recurrent tasks limit count
-- `QUEUE_TUBE_PREFIX = 'tube_'`\
+- `QUEUE_STORAGE_PREFIX = 'tube_'`\
 Default queue prefix
 - `QUEUE_WORKER_ACQUIRE_DELAY = 1`\
 Worker acquire delay in seconds on empty queues
 - `QUEUE_WORKER_BATCH_SIZE = 128`\
 Worker batch processing size
+- `QUEUE_WORKER_DEFERRED_RETRY_DELAY = 1`\
+Deferred tasks retry delay
 - `QUEUE_WORKER_EMPTY_LIMIT = 16`\
 Worker empty queue attempt limit berfore queue rebind
 - `QUEUE_WORKER_EMPTY_PAUSE = 0.1`\
 Worker pause in seconds on empty queue
+- `QUEUE_WORKER_RECURRENT_CHECK_INTERVAL = 30`\
+Recurrent interval check in seconds
+- `QUEUE_WORKER_RECURRENT_TASKS_LIMIT = 1024`\
+Recurrent tasks limit count
 
-You can import and change settings manually
+You can change runtime settings
 ```py
 from sharded_queue import Queue, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
-from sharded_queue.settings import settings
 
-settings.worker_acquire_delay = 5
-settings.worker_batch_size = 64
 
 worker = Worker(RuntimeLock(), Queue(RuntimeStorage()))
+worker.lock.settings.timeout = 5 * 60
+worker.settings.acquire_delay = 5
+worker.settings.batch_size = 64
 await worker.loop()
 
 ```

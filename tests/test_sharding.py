@@ -3,7 +3,7 @@ from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import Handler, Queue, Route, Tube, Worker, settings
+from sharded_queue import Handler, Queue, Route, Tube, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 
 
@@ -82,7 +82,7 @@ async def test_queue() -> None:
         assert await storage.length(get_pipe(1)) == 1
 
     # test worker switch
-    settings.worker_empty_pause = 0
+    worker.settings.empty_pause = 0
     (last_started, last_stopped) = tuple(context.values())
     await worker.loop(3)
     assert len(synced) == 5

@@ -5,7 +5,6 @@ from pytest import mark, raises
 
 from sharded_queue import Handler, Queue, Worker
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
-from sharded_queue.settings import settings
 
 
 class SignContractRequest(NamedTuple):
@@ -22,9 +21,10 @@ class SignContract(Handler):
 
 @mark.asyncio
 async def test_worker_pause() -> None:
-    settings.worker_empty_pause = 0.1
     queue: Queue = Queue(RuntimeStorage())
-    working_loop = Worker(RuntimeLock(), queue).loop(2)
+    worker = Worker(RuntimeLock(), queue)
+    worker.settings.empty_pause = 0.1
+    working_loop = worker.loop(2)
     worker_task = get_event_loop().create_task(working_loop)
     get_event_loop().create_task(working_loop)
     await queue.register(SignContract, SignContractRequest(1))

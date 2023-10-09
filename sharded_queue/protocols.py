@@ -1,7 +1,11 @@
 from typing import Any, Protocol
 
+from sharded_queue.settings import LockSettings, StorageSettings
+
 
 class Lock(Protocol):
+    settings: LockSettings = LockSettings()
+
     async def acquire(self, key: str) -> bool: ...
     async def exists(self, key: str) -> bool: ...
     async def release(self, key: str) -> None: ...
@@ -15,6 +19,8 @@ class Serializer(Protocol):
 
 
 class Storage(Protocol):
+    settings: StorageSettings = StorageSettings()
+
     async def append(self, tube: str, *msgs: str) -> int: ...
     async def contains(self, tube: str, msg: str) -> bool: ...
     async def length(self, tube: str) -> int: ...
