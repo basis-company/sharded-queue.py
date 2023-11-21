@@ -36,13 +36,22 @@ async def test_deferred() -> None:
     assert await queue.storage.length(drop_pipe) == 0
     assert await queue.storage.length(deferred_pipe) == 1
 
-    await worker.loop(1)
+    await queue.register(
+        DropBucket,
+        BucketRequest(1),
+        defer=timedelta(milliseconds=5),
+    )
+
     assert await queue.storage.length(drop_pipe) == 0
-    assert await queue.storage.length(deferred_pipe) == 1
+    assert await queue.storage.length(deferred_pipe) == 2
+
+    await worker.loop(2)
+    assert await queue.storage.length(drop_pipe) == 0
+    assert await queue.storage.length(deferred_pipe) == 2
 
     await sleep(0.01)
 
-    await worker.loop(1)
+    await worker.loop(2)
     assert await queue.storage.length(drop_pipe) == 1
     assert await queue.storage.length(deferred_pipe) == 0
 

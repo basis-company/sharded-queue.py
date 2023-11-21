@@ -310,7 +310,7 @@ class DeferredHandler(Handler):
         ]
 
         for pipe in set([pipe for (pipe, _) in todo]):
-            ready = [
+            ready: list[str] = [
                 msg for msg in
                 [
                     self.worker.queue.serializer.serialize(request)
@@ -320,6 +320,7 @@ class DeferredHandler(Handler):
                 if not await self.worker.queue.storage.contains(pipe, msg)
             ]
 
+            ready = list(set(ready))
             if len(ready):
                 await self.worker.queue.storage.append(pipe, *ready)
 
