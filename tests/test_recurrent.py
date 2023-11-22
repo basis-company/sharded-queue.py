@@ -45,9 +45,14 @@ async def test_recurrent() -> None:
     )
     assert await stats() == (0, 1, 0), 'recurrent pipe contains request'
 
+    deffered_registration = datetime.now().timestamp()
     await Worker(lock, queue).loop(1)
     assert await stats() == (1, 1, 0), 'added defered request'
     assert await lock.exists(recurrent_pipe)
+
+    [deferred] = await queue.storage.range(deferred_pipe, 1)
+    request = queue.serializer.deserialize(DeferredRequest, deferred)
+    assert request.timestamp >= deffered_registration
 
     await lock.release(recurrent_pipe)
     await Worker(lock, queue).loop(1, handler=RecurrentHandler)

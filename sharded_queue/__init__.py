@@ -285,7 +285,7 @@ class DeferredRequest(NamedTuple):
 
         timestamp: float = now.timestamp()
         if not isinstance(delta, timedelta):
-            timestamp = delta = delta
+            timestamp = timestamp + delta
 
         return timestamp
 
