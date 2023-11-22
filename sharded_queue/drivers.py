@@ -79,6 +79,13 @@ class RuntimeStorage(Storage):
     async def range(self, tube: str, max: int) -> list[str]:
         return self.data[tube][0:max] if tube in self.data else []
 
+    async def remove(self, tube: str, msg: str) -> None:
+        if tube not in self.data:
+            return
+
+        index = self.data[tube].index(msg)
+        self.data[tube] = self.data[tube][0:index] + self.data[tube][index+1:]
+
 
 class RedisLock(Lock):
     def __init__(
@@ -144,3 +151,6 @@ class RedisStorage(Storage):
 
     async def range(self, tube: str, max: int) -> list[str]:
         return await self.redis.lrange(self.key(tube), 0, max-1) or []
+
+    async def remove(self, tube: str, msg: str) -> None:
+        await self.redis.lrem(self.key(tube), 1, msg)

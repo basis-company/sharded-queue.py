@@ -37,3 +37,10 @@ async def runner(storage) -> None:
     assert await storage.pop('tester', 2) == ['w', 'e']
     assert await storage.pop('tester', 10) == ['r', 't', 'y']
     assert await storage.pop('tester', 1) == []
+
+    await storage.append('tester', 'q')
+    await storage.append('tester', 'w')
+    await storage.append('tester', 'e')
+
+    await storage.remove('tester', 'w')
+    assert await storage.pop('tester', 2) == ['q', 'e']
