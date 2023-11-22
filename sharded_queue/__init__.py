@@ -102,9 +102,22 @@ class Queue(Generic[T]):
 
         if recurrent:
             if_not_exists = True
+            tube = Tube(RecurrentHandler, Route())
+            length = await self.storage.length(tube.pipe)
+            messages = await self.storage.range(tube.pipe, length)
+
             pipe_messages = RecurrentHandler.transform(
                 pipe_messages, recurrent, self.serializer
             )
+
+            recurrent_tuples = [
+                (request.pipe, request.msg) for (_, request) in pipe_messages
+            ]
+
+            for msg in reversed(messages):
+                request = self.serializer.deserialize(RecurrentRequest, msg)
+                if (request.pipe, request.msg) in recurrent_tuples:
+                    await self.storage.remove(tube.pipe, msg)
 
         if defer:
             if_not_exists = True

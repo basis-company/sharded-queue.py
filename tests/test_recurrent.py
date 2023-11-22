@@ -1,11 +1,12 @@
 from asyncio import sleep
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import NamedTuple
 
 from pytest import mark
 
-from sharded_queue import (DeferredHandler, Handler, Queue, RecurrentHandler,
-                           Route, Tube, Worker)
+from sharded_queue import (DeferredHandler, DeferredRequest, Handler, Queue,
+                           RecurrentHandler, RecurrentRequest, Route, Tube,
+                           Worker)
 from sharded_queue.drivers import RuntimeLock, RuntimeStorage
 from sharded_queue.protocols import Lock, Storage
 
@@ -41,7 +42,7 @@ async def test_recurrent() -> None:
         )
 
     await queue.register(
-        ValidateAccess, CompanyRequest(1), recurrent=timedelta(milliseconds=10)
+        ValidateAccess, CompanyRequest(1), recurrent=timedelta(seconds=1)
     )
     assert await stats() == (0, 1, 0), 'recurrent pipe contains request'
 
@@ -58,7 +59,7 @@ async def test_recurrent() -> None:
     await Worker(lock, queue).loop(1, handler=RecurrentHandler)
     assert await stats() == (1, 1, 0), 'no deffered duplicates'
 
-    await sleep(0.01)
+    await sleep(1)
 
     await lock.release(recurrent_pipe)
     await Worker(lock, queue).loop(1, handler=RecurrentHandler)
@@ -71,7 +72,20 @@ async def test_recurrent() -> None:
     await worker.loop(1, handler=RecurrentHandler)
     assert await stats() == (1, 1, 1), 'deferred added'
 
-    await sleep(0.01)
+    await sleep(1)
 
     await worker.loop(1, handler=DeferredHandler)
     assert await stats() == (0, 1, 1), 'no validation duplicate'
+
+    [recurrent] = await queue.storage.range(recurrent_pipe, 1)
+    request = queue.serializer.deserialize(RecurrentRequest, recurrent)
+    assert request.interval == 1
+    await queue.register(
+        ValidateAccess, CompanyRequest(1), recurrent=timedelta(seconds=2)
+    )
+
+    assert await queue.storage.length(recurrent_pipe) == 1
+
+    [recurrent] = await queue.storage.range(recurrent_pipe, 1)
+    request = queue.serializer.deserialize(RecurrentRequest, recurrent)
+    assert request.interval == 2
