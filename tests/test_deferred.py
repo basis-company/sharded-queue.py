@@ -45,9 +45,14 @@ async def test_deferred() -> None:
     assert await queue.storage.length(drop_pipe) == 0
     assert await queue.storage.length(deferred_pipe) == 2
 
+    append_order = await queue.storage.range(deferred_pipe, 2)
+
     await worker.loop(2)
     assert await queue.storage.length(drop_pipe) == 0
     assert await queue.storage.length(deferred_pipe) == 2
+
+    timestamp_order = await queue.storage.range(deferred_pipe, 2)
+    assert list(reversed(append_order)) == timestamp_order
 
     await sleep(0.01)
 

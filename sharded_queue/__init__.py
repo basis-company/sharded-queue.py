@@ -314,6 +314,7 @@ class DeferredHandler(Handler):
         ]
 
         if len(pending):
+            pending = sorted(pending, key=lambda r: r.timestamp)
             await self.worker.queue.register(DeferredHandler, *pending)
 
         todo: list[tuple[str, list]] = [
