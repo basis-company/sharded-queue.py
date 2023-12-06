@@ -232,7 +232,7 @@ class Worker:
                     batch_size = self.settings.recurrent_tasks_limit
                 else:
                     batch_size = instance.batch_size()
-                    if not batch_size:
+                    if batch_size is None:
                         batch_size = self.settings.batch_size
                     batch_size = min(limit, batch_size)
                 processed = False
