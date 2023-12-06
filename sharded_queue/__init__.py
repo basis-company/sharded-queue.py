@@ -234,7 +234,8 @@ class Worker:
                     batch_size = instance.batch_size()
                     if batch_size is None:
                         batch_size = self.settings.batch_size
-                    batch_size = min(limit, batch_size)
+                    if limit is not None:
+                        batch_size = min(limit, batch_size)
                 processed = False
                 for pipe in pipes:
                     msgs = await storage.range(pipe, batch_size)
