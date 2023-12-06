@@ -52,6 +52,12 @@ class NotifyHandler(Handler):
         '''
         # users = await UserRepository.find_all([r.user_id for r in requests])
         # await mailer.send_all([construct_message(user) for user in users])
+
+    def batch_size(self) -> None:
+        '''
+        Optionally, you can ovveride global batch size per handler
+        '''
+        return 128
 ```
 
 ## Usage example
