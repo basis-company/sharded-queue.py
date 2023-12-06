@@ -47,8 +47,8 @@ class Handler(Generic[T]):
     async def stop(self) -> None:
         pass
 
-    def batch_size(self) -> int:
-        return self.settings.batch_size
+    def batch_size(self) -> Optional[int]:
+        pass
 
 
 class Tube(NamedTuple):
@@ -231,7 +231,10 @@ class Worker:
                 if tube.handler is RecurrentHandler:
                     batch_size = self.settings.recurrent_tasks_limit
                 else:
-                    batch_size = min(limit, instance.batch_size())
+                    batch_size = instance.batch_size()
+                    if not batch_size:
+                        batch_size = self.settings.batch_size
+                    batch_size = min(limit, batch_size)
                 processed = False
                 for pipe in pipes:
                     msgs = await storage.range(pipe, batch_size)
