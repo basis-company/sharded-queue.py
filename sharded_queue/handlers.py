@@ -13,6 +13,7 @@ from sharded_queue.settings import WorkerSettings
 from sharded_queue.schema import Handler, Route, DeferredRequest, RecurrentRequest, T
 
 
+# TODO: Tube is not a handler, so it should be moved to another module
 class Tube(NamedTuple):
     handler: type[Handler]
     route: Route
@@ -43,6 +44,7 @@ class Tube(NamedTuple):
             await instance.stop()
 
 
+# TODO: Queue is not a handler, so it should be moved to another module
 @dataclass
 class Queue(Generic[T]):
     def __init__(
@@ -105,6 +107,7 @@ class Queue(Generic[T]):
                 await self.storage.append(pipe, *msgs)
 
 
+# TODO: Worker is not a handler, so it should be moved to another module
 @dataclass
 class Worker:
     lock: Lock
