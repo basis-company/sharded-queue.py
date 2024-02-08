@@ -371,7 +371,7 @@ class RecurrentRequest(NamedTuple):
     @classmethod
     def get_interval(cls, interval: int | float | timedelta) -> float:
         if isinstance(interval, timedelta):
-            return float(interval.seconds)
+            return float(interval.total_seconds())
 
         return float(interval)
 
