@@ -300,7 +300,7 @@ class DeferredRequest(NamedTuple):
         if isinstance(delta, str):
             return rrulestr(delta).after(datetime.now()).timestamp()
 
-        now: datetime = datetime.now()
+        now: datetime = datetime.now().replace(microsecond=0)
         if isinstance(delta, timedelta):
             now = now + delta
 
