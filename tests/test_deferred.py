@@ -25,7 +25,7 @@ async def test_deferred() -> None:
     await queue.register(
         DropBucket,
         BucketRequest(1),
-        defer=timedelta(milliseconds=10),
+        defer=timedelta(seconds=2),
     )
 
     deferred_pipe: str = Tube(DeferredHandler, Route()).pipe
@@ -39,7 +39,7 @@ async def test_deferred() -> None:
     await queue.register(
         DropBucket,
         BucketRequest(1),
-        defer=timedelta(milliseconds=5),
+        defer=timedelta(seconds=1),
     )
 
     assert await queue.storage.length(drop_pipe) == 0
@@ -54,7 +54,7 @@ async def test_deferred() -> None:
     timestamp_order = await queue.storage.range(deferred_pipe, 2)
     assert list(reversed(append_order)) == timestamp_order
 
-    await sleep(0.01)
+    await sleep(2)
 
     await worker.loop(2)
     assert await queue.storage.length(drop_pipe) == 1
