@@ -94,9 +94,9 @@ class Queue(Generic[T]):
 
     async def register(
         self, handler: type[Handler], *requests: T,
-        defer: Optional[float | int | timedelta] = None,
+        defer: Optional[int | timedelta] = None,
         if_not_exists: bool = False,
-        recurrent: Optional[float | int | timedelta] = None,
+        recurrent: Optional[int | timedelta] = None,
     ) -> None:
         routes = await handler.route(*requests)
         pipe_messages: list[tuple[str, Any]] = [
@@ -288,15 +288,15 @@ class Worker:
 
 
 class DeferredRequest(NamedTuple):
-    timestamp: float
+    timestamp: int
     pipe: str
     msg: list
 
     @classmethod
     def calculate_timestamp(
         cls,
-        delta: float | int | str | timedelta,
-    ) -> float:
+        delta: int | str | timedelta,
+    ) -> int:
         if isinstance(delta, str):
             return rrulestr(delta).after(datetime.now()).timestamp()
 
@@ -308,7 +308,7 @@ class DeferredRequest(NamedTuple):
         if not isinstance(delta, timedelta):
             timestamp = timestamp + delta
 
-        return timestamp
+        return int(timestamp)
 
 
 class DeferredHandler(Handler):
@@ -353,7 +353,7 @@ class DeferredHandler(Handler):
     def transform(
         cls,
         pipe_messages: list[tuple[str, T]],
-        defer: float | int | timedelta,
+        defer: int | timedelta,
         serializer: Serializer,
     ) -> list[tuple[str, DeferredRequest]]:
         timestamp = DeferredRequest.calculate_timestamp(defer)
@@ -371,22 +371,22 @@ class DeferredHandler(Handler):
 
 
 class RecurrentRequest(NamedTuple):
-    interval: float | str
+    interval: int | str
     pipe: str
     msg: list
 
     @classmethod
     def get_interval(
         cls,
-        interval: int | float | timedelta | rrule
-    ) -> float | str:
+        interval: int | timedelta | rrule
+    ) -> int | str:
         if isinstance(interval, rrule):
             return str(interval)
 
         if isinstance(interval, timedelta):
-            return float(int(interval.total_seconds()))
+            return int(interval.total_seconds())
 
-        return float(interval)
+        return interval
 
 
 class RecurrentHandler(Handler):
@@ -423,10 +423,10 @@ class RecurrentHandler(Handler):
     def transform(
         cls,
         pipe_messages: list[tuple[str, T]],
-        recurrent: float | int | timedelta | rrule,
+        recurrent: int | timedelta | rrule,
         serializer: Serializer,
     ) -> list[tuple[str, RecurrentRequest]]:
-        interval: float | str = RecurrentRequest.get_interval(recurrent)
+        interval: int | str = RecurrentRequest.get_interval(recurrent)
         return [
             (
                 Tube(RecurrentHandler, Route()).pipe,
